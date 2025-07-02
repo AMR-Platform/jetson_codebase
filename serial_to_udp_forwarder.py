@@ -4,7 +4,7 @@ import socket
 # ----- CONFIGURATION -----
 SERIAL_PORT = '/dev/ttyACM0'  # Change as per your Jetson serial port
 BAUD_RATE = 115200
-UDP_IP = '192.168.1.189'  # Receiver IP (your PC running robot_data_tranceiver.py)
+UDP_IP = '192.168.1.189'  # Receiver IP (your PC running listner.py)
 UDP_PORT = 12345
 # -------------------------
 
