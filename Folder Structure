@@ -1,0 +1,19 @@
+slam_from_scratch/
+├── include/
+│   ├── encoder_handler.hpp
+│   ├── imu_handler.hpp
+│   ├── kalman_filter.hpp
+│   ├── lidar_handler.hpp
+│   ├── occupancy_grid.hpp
+│   ├── serial_parser.hpp       <-- ✅ added
+│   └── utils.hpp
+├── src/
+│   ├── encoder_handler.cpp
+│   ├── imu_handler.cpp
+│   ├── kalman_filter.cpp
+│   ├── lidar_handler.cpp
+│   ├── occupancy_grid.cpp
+│   ├── serial_parser.cpp       <-- ✅ added
+│   └── main.cpp
+├── CMakeLists.txt              <-- ✅ updated
+└── build/
