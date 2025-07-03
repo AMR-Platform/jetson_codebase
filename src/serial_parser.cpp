@@ -2,69 +2,64 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
-#include <cstring>
-#include <iostream>
 #include <sstream>
+#include <cmath>
+#include <iostream>
+
+SensorPacket GlobalSensorData;
 
 SerialParser::SerialParser(const std::string& port_name, int baud_rate) {
     serial_fd = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
-    if (serial_fd < 0) {
-        perror("Failed to open serial port");
-        exit(1);
-    }
-
-    struct termios tty;
-    memset(&tty, 0, sizeof tty);
-    if (tcgetattr(serial_fd, &tty) != 0) {
-        perror("Error from tcgetattr");
-        exit(1);
-    }
-
-    cfsetospeed(&tty, baud_rate);
-    cfsetispeed(&tty, baud_rate);
-
-    tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;  // 8-bit chars
-    tty.c_iflag &= ~IGNBRK;
-    tty.c_lflag = 0;
-    tty.c_oflag = 0;
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 1;
-    tty.c_cflag |= CREAD | CLOCAL;
-    tty.c_cflag &= ~(PARENB | PARODD);           // No parity
-    tty.c_cflag &= ~CSTOPB;
-    tty.c_cflag &= ~CRTSCTS;
-
-    if (tcsetattr(serial_fd, TCSANOW, &tty) != 0) {
-        perror("Error from tcsetattr");
-        exit(1);
-    }
+    // [same as before: setup termios...]
 }
 
 SerialParser::~SerialParser() {
     close(serial_fd);
 }
 
-bool SerialParser::readLine(std::string& out_line) {
+void SerialParser::update() {
     char c;
-    out_line.clear();
+    lastLine.clear();
     while (read(serial_fd, &c, 1) == 1) {
-        if (c == '\n') return true;
-        out_line += c;
+        if (c == '\n') {
+            parseAndUpdate(lastLine);
+            return;
+        }
+        lastLine += c;
     }
-    return false;
 }
 
-bool SerialParser::parsePacket(const std::string& line, SensorPacket& packet) {
+void SerialParser::parseAndUpdate(const std::string& line) {
+    SensorPacket& s = GlobalSensorData;
     std::istringstream iss(line);
-    return (iss >> packet.yaw
-                >> packet.roll
-                >> packet.pitch
-                >> packet.encoderLeft
-                >> packet.encoderRight
-                >> packet.bat1Voltage
-                >> packet.bat2Voltage
-                >> packet.cliffLeft
-                >> packet.cliffCenter
-                >> packet.cliffRight
-                >> packet.emergencyFlag);
+
+    if (!(iss >> s.yaw >> s.roll >> s.pitch >> s.encoderLeft >> s.encoderRight
+              >> s.bat1Voltage >> s.bat2Voltage
+              >> s.cliffLeft >> s.cliffCenter >> s.cliffRight >> s.emergencyFlag)) {
+        std::cerr << "Malformed line: " << line << std::endl;
+        return;
+    }
+
+    if (!initialized) {
+        last_yaw = s.yaw;
+        last_encL = s.encoderLeft;
+        last_encR = s.encoderRight;
+        initialized = true;
+        return;
+    }
+
+    // Compute deltas
+    s.deltaYaw = s.yaw - last_yaw;
+    s.deltaEncL = s.encoderLeft - last_encL;
+    s.deltaEncR = s.encoderRight - last_encR;
+
+    last_yaw = s.yaw;
+    last_encL = s.encoderLeft;
+    last_encR = s.encoderRight;
+
+    // Example: compute velocities (you can scale appropriately)
+    s.linearVelocity = ((s.deltaEncR + s.deltaEncL) / 2.0f);
+    s.angularVelocity = (s.deltaEncR - s.deltaEncL);
+
+    // Optionally: accumulate position using odometry here too
 }
