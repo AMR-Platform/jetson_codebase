@@ -5,7 +5,7 @@ Jetson_codebase_scratch/
 │   ├── kalman_filter.hpp
 │   ├── lidar_handler.hpp
 │   ├── occupancy_grid.hpp
-│   ├── serial_parser.hpp       <-- ✅ added
+│   ├── serial_parser.hpp       
 │   └── utils.hpp
 ├── src/
 │   ├── encoder_handler.cpp
@@ -13,7 +13,7 @@ Jetson_codebase_scratch/
 │   ├── kalman_filter.cpp
 │   ├── lidar_handler.cpp
 │   ├── occupancy_grid.cpp
-│   ├── serial_parser.cpp       <-- ✅ added
+│   ├── serial_parser.cpp       
 │   └── main.cpp
-├── CMakeLists.txt              <-- ✅ updated
+├── CMakeLists.txt              
 └── build/
