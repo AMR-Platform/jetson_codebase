@@ -1,4 +1,4 @@
-#include "serial_parser.hpp"
+#include "serial_com.hpp"
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -9,7 +9,7 @@
 
 SensorPacket GlobalSensorData;
 
-SerialParser::SerialParser(const std::string& port_name, int baud_rate) {
+Serial_Com::Serial_Com(const std::string& port_name, int baud_rate) {
     serial_fd = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd < 0) {
         perror("Failed to open serial port");
@@ -44,11 +44,11 @@ SerialParser::SerialParser(const std::string& port_name, int baud_rate) {
     }
 }
 
-SerialParser::~SerialParser() {
+Serial_Com::~Serial_Com() {
     close(serial_fd);
 }
 
-void SerialParser::update() {
+void Serial_Com::update() {
     char c;
     lastLine.clear();
 
@@ -61,14 +61,14 @@ void SerialParser::update() {
     }
 }
 
-void SerialParser::parseAndUpdate(const std::string& line) {
+void Serial_Com::parseAndUpdate(const std::string& line) {
     SensorPacket& s = GlobalSensorData;
     std::istringstream iss(line);
 
     if (!(iss >> s.yaw >> s.roll >> s.pitch >> s.encoderLeft >> s.encoderRight
               >> s.bat1Voltage >> s.bat2Voltage
               >> s.cliffLeft >> s.cliffCenter >> s.cliffRight >> s.emergencyFlag)) {
-        std::cerr << "[SerialParser] Malformed line: " << line << std::endl;
+        std::cerr << "[Serial_Com] Malformed line: " << line << std::endl;
         return;
     }
 

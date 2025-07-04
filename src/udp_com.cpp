@@ -1,34 +1,34 @@
-#include "udp_receiver.hpp"
+#include "udp_com.hpp"
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
 #include <netinet/in.h>
 
-UdpReceiver::UdpReceiver(int port) : port(port), running(false) {}
+UDP_Com::UDP_Com(int port) : port(port), running(false) {}
 
-UdpReceiver::~UdpReceiver() {
+UDP_Com::~UDP_Com() {
     stop();
 }
 
-void UdpReceiver::start() {
+void UDP_Com::start() {
     running = true;
-    receiver_thread = std::thread(&UdpReceiver::receiveLoop, this);
+    receiver_thread = std::thread(&UDP_Com::receiveLoop, this);
 }
 
-void UdpReceiver::stop() {
+void UDP_Com::stop() {
     running = false;
     if (receiver_thread.joinable()) receiver_thread.join();
 }
 
-bool UdpReceiver::isRunning() const {
+bool UDP_Com::isRunning() const {
     return running;
 }
 
-std::string UdpReceiver::getLastMessage() {
+std::string UDP_Com::getLastMessage() {
     return last_message;
 }
 
-void UdpReceiver::receiveLoop() {
+void UDP_Com::receiveLoop() {
     struct sockaddr_in server_addr{}, client_addr{};
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {

@@ -1,14 +1,14 @@
-#ifndef UDP_RECEIVER_HPP
-#define UDP_RECEIVER_HPP
+#ifndef UDP_COM_HPP
+#define UDP_COM_HPP
 
 #include <string>
 #include <thread>
 #include <atomic>
 
-class UdpReceiver {
+class UDP_Com {
 public:
-    UdpReceiver(int port = 8888);
-    ~UdpReceiver();
+    UDP_Com(int port = 8888);
+    ~UDP_Com();
 
     void start();
     void stop();
@@ -26,4 +26,4 @@ private:
     std::string last_message;
 };
 
-#endif // UDP_RECEIVER_HPP
+#endif // UDP_COM_HPP

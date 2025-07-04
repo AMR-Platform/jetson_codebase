@@ -1,4 +1,4 @@
-// kalman_filter.hpp - Extended Kalman Filter for dead reckoning
+// ekf.hpp - Extended Kalman Filter for dead reckoning
 
 #pragma once
 #include <Eigen/Dense>
@@ -9,9 +9,9 @@ struct Pose2D {
     float theta;
 };
 
-class KalmanFilter {
+class EKF {
 public:
-    KalmanFilter(float dt);
+    EKF(float dt);
     void predict(float linear_velocity, float angular_velocity);
     void updateFromYaw(float measured_yaw);
     Pose2D getPose() const;

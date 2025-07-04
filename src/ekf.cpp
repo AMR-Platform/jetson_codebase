@@ -1,9 +1,9 @@
-// kalman_filter.cpp - EKF implementation for pose estimation
+// ekf.cpp - EKF implementation for pose estimation
 
-#include "kalman_filter.hpp"
+#include "ekf.hpp"
 #include <cmath>
 
-KalmanFilter::KalmanFilter(float dt) : dt(dt) {
+EKF::EKF(float dt) : dt(dt) {
     state << 0.0f, 0.0f, 0.0f; // x, y, theta
     P = Eigen::Matrix3f::Identity() * 0.01f;
 
@@ -16,7 +16,7 @@ KalmanFilter::KalmanFilter(float dt) : dt(dt) {
     R(2,2) = 0.05f; // Only yaw observed
 }
 
-void KalmanFilter::predict(float v, float omega) {
+void EKF::predict(float v, float omega) {
     float theta = state(2);
 
     float dx = v * dt * std::cos(theta);
@@ -35,7 +35,7 @@ void KalmanFilter::predict(float v, float omega) {
     P = J * P * J.transpose() + Q;
 }
 
-void KalmanFilter::updateFromYaw(float measured_yaw) {
+void EKF::updateFromYaw(float measured_yaw) {
     Eigen::Vector3f z;
     z << 0.0f, 0.0f, normalizeAngle(measured_yaw);
 
@@ -56,11 +56,11 @@ void KalmanFilter::updateFromYaw(float measured_yaw) {
     P = (Eigen::Matrix3f::Identity() - K * H) * P;
 }
 
-Pose2D KalmanFilter::getPose() const {
+Pose2D EKF::getPose() const {
     return {state(0), state(1), state(2)};
 }
 
-float KalmanFilter::normalizeAngle(float angle) {
+float EKF::normalizeAngle(float angle) {
     while (angle > M_PI) angle -= 2 * M_PI;
     while (angle < -M_PI) angle += 2 * M_PI;
     return angle;

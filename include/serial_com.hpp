@@ -1,5 +1,5 @@
-#ifndef SERIAL_PARSER_HPP
-#define SERIAL_PARSER_HPP
+#ifndef SERIAL_COM_HPP
+#define SERIAL_COM_HPP
 
 #include <string>
 
@@ -33,10 +33,10 @@ struct SensorPacket {
 // Global instance for access by other modules
 extern SensorPacket GlobalSensorData;
 
-class SerialParser {
+class Serial_Com {
 public:
-    SerialParser(const std::string& port_name, int baud_rate);
-    ~SerialParser();
+    Serial_Com(const std::string& port_name, int baud_rate);
+    ~Serial_Com();
 
     void update(); // Reads a line and updates GlobalSensorData
 
@@ -53,4 +53,4 @@ private:
     void parseAndUpdate(const std::string& line);
 };
 
-#endif // SERIAL_PARSER_HPP
+#endif // SERIAL_COM_HPP
