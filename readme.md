@@ -6,6 +6,19 @@ This project implements a **modular SLAM (Simultaneous Localization and Mapping)
 
 ---
 
+## How to run 
+
+g++ main.cpp lidar_handler.cpp -o lidar_receiver -pthread
+./lidar_receiver
+
+
+
+cd Jetson_codebase_scratch
+mkdir -p build && cd build
+cmake ..
+make -j$(nproc)
+./slam_exec
+
 ## 📁 Project Structure
 
 Jetson_codebase_scratch/

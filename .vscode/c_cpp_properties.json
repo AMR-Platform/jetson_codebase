@@ -1,0 +1,28 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "Linux",
+            // Folders IntelliSense should crawl
+            "includePath": [
+                "${workspaceFolder}/**",    // your own headers
+                "/usr/include/eigen3"       // Eigen
+            ],
+            // Optional but speeds up “Go to Definition”
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "/usr/include/eigen3"
+                ]
+            },
+            "defines": [],
+            // Use the C++ driver (clang++) instead of the C driver
+            "compilerPath": "/usr/bin/clang++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-clang-x64"
+            // If you let CMake export compile_commands.json you can add:
+            // "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+        }
+    ]
+}

@@ -1,20 +1,28 @@
-cmake_minimum_required(VERSION 3.10)
-project(slam_from_scratch)
+cmake_minimum_required(VERSION 3.16)
+project(slam_from_scratch LANGUAGES CXX)
 
+# ---------- Global compile settings ----------
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # VS Code can consume this
 
-# Find Eigen
-find_package(Eigen3 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR})
+# ---------- Dependencies ----------
+# Eigen is header-only, but the imported target adds its include dir for us
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
-# Include directories
-include_directories(include)
+# ---------- Sources ----------
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
-# Source files
-file(GLOB SOURCES "src/*.cpp")
-
-# Executable
+# ---------- Executable ----------
 add_executable(slam_exec ${SOURCES})
 
-# Link libraries (Eigen is header-only, so no linking needed)
+# ---------- Include dirs & link libs ----------
+# Your own headers
+target_include_directories(slam_exec
+    PUBLIC ${PROJECT_SOURCE_DIR}/include
+)
+
+# Header-only libraries are still “linked” so their include dirs propagate
+target_link_libraries(slam_exec
+    PUBLIC Eigen3::Eigen
+)

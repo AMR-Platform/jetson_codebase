@@ -1,2 +1,0 @@
-g++ main.cpp lidar_handler.cpp -o lidar_receiver -pthread
-./lidar_receiver
