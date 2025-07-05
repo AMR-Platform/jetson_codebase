@@ -3,17 +3,17 @@
 cmake_policy(SET CMP0009 NEW)
 
 # SOURCES at CMakeLists.txt:14 (file)
-file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/*.cpp")
+file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/*.cpp")
 set(OLD_GLOB
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/ekf.cpp"
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/lidar_handler.cpp"
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/main.cpp"
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/occupancy_grid.cpp"
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/serial_com.cpp"
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/udp_com.cpp"
-  "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/src/utils.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp"
+  "/home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
   message("-- GLOB mismatch!")
-  file(TOUCH_NOCREATE "/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/build/CMakeFiles/cmake.verify_globs")
+  file(TOUCH_NOCREATE "/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles/cmake.verify_globs")
 endif()
