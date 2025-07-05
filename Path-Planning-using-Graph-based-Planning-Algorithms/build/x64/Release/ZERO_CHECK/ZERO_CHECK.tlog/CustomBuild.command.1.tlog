@@ -1,0 +1,10 @@
+^C:\USERS\USER\DESKTOP\EDR\PATH-PLANNING-USING-GRAPH-BASED-PLANNING-ALGORITHMS-MAIN\BUILD\CMAKEFILES\10B3070807895A11FFF18201A62DDA49\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/USER/Desktop/EDR/Path-Planning-using-Graph-based-Planning-Algorithms-main -BC:/Users/USER/Desktop/EDR/Path-Planning-using-Graph-based-Planning-Algorithms-main/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/USER/Desktop/EDR/Path-Planning-using-Graph-based-Planning-Algorithms-main/build/PathPlanner.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
