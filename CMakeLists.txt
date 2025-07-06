@@ -42,13 +42,7 @@ add_executable(test_ekf
     src/SensorFusion.cpp
 )
 
-# Simple EKF integration example
-add_executable(simple_ekf_example
-    src/simple_ekf_example.cpp
-    src/SensorFusion.cpp
-    src/serial_com.cpp
-    src/utils.cpp
-)
+
 
 target_include_directories(main_exe
     PUBLIC
@@ -67,10 +61,7 @@ target_include_directories(test_ekf
         ${PROJECT_SOURCE_DIR}/include
 )
 
-target_include_directories(simple_ekf_example
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-)
+
 
 target_link_libraries(main_exe
     PUBLIC
@@ -93,9 +84,4 @@ target_link_libraries(test_ekf
         Eigen3::Eigen
 )
 
-target_link_libraries(simple_ekf_example
-    PUBLIC
-        Eigen3::Eigen
-        ${Boost_LIBRARIES}
-        pthread
-)
+
