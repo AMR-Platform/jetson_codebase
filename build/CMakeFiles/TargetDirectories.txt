@@ -1,3 +1,3 @@
-/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/build/CMakeFiles/slam_exec.dir
-/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/build/CMakeFiles/edit_cache.dir
-/home/kiran_gunathilaka/development/amr/Jetson_codebase_scratch/build/CMakeFiles/rebuild_cache.dir
+/home/navod/jetson_codebase/build/CMakeFiles/rebuild_cache.dir
+/home/navod/jetson_codebase/build/CMakeFiles/slam_exec.dir
+/home/navod/jetson_codebase/build/CMakeFiles/edit_cache.dir
