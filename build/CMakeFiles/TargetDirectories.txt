@@ -1,3 +1,0 @@
-/home/navod/jetson_codebase/build/CMakeFiles/rebuild_cache.dir
-/home/navod/jetson_codebase/build/CMakeFiles/slam_exec.dir
-/home/navod/jetson_codebase/build/CMakeFiles/edit_cache.dir
