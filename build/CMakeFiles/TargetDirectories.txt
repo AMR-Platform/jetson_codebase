@@ -1,3 +1,0 @@
-/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles/main_exe.dir
-/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles/edit_cache.dir
-/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles/rebuild_cache.dir
