@@ -73,99 +73,99 @@ CMakeFiles/main_exe.dir/src/ekf.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/ekf.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp
 CMakeFiles/main_exe.dir/src/ekf.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/main_exe.dir/src/ekf.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/ekf.cpp.o -MF CMakeFiles/main_exe.dir/src/ekf.cpp.o.d -o CMakeFiles/main_exe.dir/src/ekf.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/ekf.cpp.o -MF CMakeFiles/main_exe.dir/src/ekf.cpp.o.d -o CMakeFiles/main_exe.dir/src/ekf.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp
 
 CMakeFiles/main_exe.dir/src/ekf.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/ekf.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp > CMakeFiles/main_exe.dir/src/ekf.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp > CMakeFiles/main_exe.dir/src/ekf.cpp.i
 
 CMakeFiles/main_exe.dir/src/ekf.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/ekf.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp -o CMakeFiles/main_exe.dir/src/ekf.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/ekf.cpp -o CMakeFiles/main_exe.dir/src/ekf.cpp.s
 
 CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp
 CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o -MF CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o.d -o CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o -MF CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o.d -o CMakeFiles/main_exe.dir/src/lidar_handler.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp
 
 CMakeFiles/main_exe.dir/src/lidar_handler.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/lidar_handler.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp > CMakeFiles/main_exe.dir/src/lidar_handler.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp > CMakeFiles/main_exe.dir/src/lidar_handler.cpp.i
 
 CMakeFiles/main_exe.dir/src/lidar_handler.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/lidar_handler.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp -o CMakeFiles/main_exe.dir/src/lidar_handler.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/lidar_handler.cpp -o CMakeFiles/main_exe.dir/src/lidar_handler.cpp.s
 
 CMakeFiles/main_exe.dir/src/main.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/main.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp
 CMakeFiles/main_exe.dir/src/main.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/main_exe.dir/src/main.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/main.cpp.o -MF CMakeFiles/main_exe.dir/src/main.cpp.o.d -o CMakeFiles/main_exe.dir/src/main.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/main.cpp.o -MF CMakeFiles/main_exe.dir/src/main.cpp.o.d -o CMakeFiles/main_exe.dir/src/main.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp
 
 CMakeFiles/main_exe.dir/src/main.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/main.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp > CMakeFiles/main_exe.dir/src/main.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp > CMakeFiles/main_exe.dir/src/main.cpp.i
 
 CMakeFiles/main_exe.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/main.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp -o CMakeFiles/main_exe.dir/src/main.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/main.cpp -o CMakeFiles/main_exe.dir/src/main.cpp.s
 
 CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp
 CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o -MF CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o.d -o CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o -MF CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o.d -o CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp
 
 CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp > CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp > CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.i
 
 CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp -o CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/occupancy_grid.cpp -o CMakeFiles/main_exe.dir/src/occupancy_grid.cpp.s
 
 CMakeFiles/main_exe.dir/src/serial_com.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/serial_com.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp
 CMakeFiles/main_exe.dir/src/serial_com.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/main_exe.dir/src/serial_com.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/serial_com.cpp.o -MF CMakeFiles/main_exe.dir/src/serial_com.cpp.o.d -o CMakeFiles/main_exe.dir/src/serial_com.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/serial_com.cpp.o -MF CMakeFiles/main_exe.dir/src/serial_com.cpp.o.d -o CMakeFiles/main_exe.dir/src/serial_com.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp
 
 CMakeFiles/main_exe.dir/src/serial_com.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/serial_com.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp > CMakeFiles/main_exe.dir/src/serial_com.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp > CMakeFiles/main_exe.dir/src/serial_com.cpp.i
 
 CMakeFiles/main_exe.dir/src/serial_com.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/serial_com.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp -o CMakeFiles/main_exe.dir/src/serial_com.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/serial_com.cpp -o CMakeFiles/main_exe.dir/src/serial_com.cpp.s
 
 CMakeFiles/main_exe.dir/src/udp_com.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/udp_com.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp
 CMakeFiles/main_exe.dir/src/udp_com.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/main_exe.dir/src/udp_com.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/udp_com.cpp.o -MF CMakeFiles/main_exe.dir/src/udp_com.cpp.o.d -o CMakeFiles/main_exe.dir/src/udp_com.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/udp_com.cpp.o -MF CMakeFiles/main_exe.dir/src/udp_com.cpp.o.d -o CMakeFiles/main_exe.dir/src/udp_com.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp
 
 CMakeFiles/main_exe.dir/src/udp_com.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/udp_com.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp > CMakeFiles/main_exe.dir/src/udp_com.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp > CMakeFiles/main_exe.dir/src/udp_com.cpp.i
 
 CMakeFiles/main_exe.dir/src/udp_com.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/udp_com.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp -o CMakeFiles/main_exe.dir/src/udp_com.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/udp_com.cpp -o CMakeFiles/main_exe.dir/src/udp_com.cpp.s
 
 CMakeFiles/main_exe.dir/src/utils.cpp.o: CMakeFiles/main_exe.dir/flags.make
 CMakeFiles/main_exe.dir/src/utils.cpp.o: /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp
 CMakeFiles/main_exe.dir/src/utils.cpp.o: CMakeFiles/main_exe.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/kiran_gunathilaka/development/amr/jetson_codebase/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/main_exe.dir/src/utils.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/utils.cpp.o -MF CMakeFiles/main_exe.dir/src/utils.cpp.o.d -o CMakeFiles/main_exe.dir/src/utils.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/main_exe.dir/src/utils.cpp.o -MF CMakeFiles/main_exe.dir/src/utils.cpp.o.d -o CMakeFiles/main_exe.dir/src/utils.cpp.o -c /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp
 
 CMakeFiles/main_exe.dir/src/utils.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/main_exe.dir/src/utils.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp > CMakeFiles/main_exe.dir/src/utils.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp > CMakeFiles/main_exe.dir/src/utils.cpp.i
 
 CMakeFiles/main_exe.dir/src/utils.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/main_exe.dir/src/utils.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp -o CMakeFiles/main_exe.dir/src/utils.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/kiran_gunathilaka/development/amr/jetson_codebase/src/utils.cpp -o CMakeFiles/main_exe.dir/src/utils.cpp.s
 
 # Object files for target main_exe
 main_exe_OBJECTS = \
