@@ -8,7 +8,6 @@
 #include <boost/filesystem.hpp>
 #include <chrono>
 
-<<<<<<< HEAD
 namespace fs = boost::filesystem;
 
 /* ---------- misc helpers ------------------------------------------------ */
