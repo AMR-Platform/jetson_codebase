@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 cmake_minimum_required(VERSION 3.10)
-project(slam_from_scratch LANGUAGES CXX)
-=======
-cmake_minimum_required(VERSION 3.16)
 project(jetson_codebase LANGUAGES CXX)
->>>>>>> udp_serial
 
 # ---------- Global Settings ----------
 set(CMAKE_CXX_STANDARD 17)
@@ -25,32 +20,19 @@ file(GLOB VENDOR_SRC ${LAKI_ROOT}/src/*.cpp)
 file(GLOB_RECURSE USER_SRC src/*.cpp)
 
 # ---------- Executable ----------
-<<<<<<< HEAD
-add_executable(slam_exec ${USER_SRC} ${VENDOR_SRC})
+add_executable(main_exe ${USER_SRC} ${VENDOR_SRC})
 
-target_include_directories(slam_exec
+target_include_directories(main_exe
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
         ${OpenCV_INCLUDE_DIRS}
 )
 
-target_link_libraries(slam_exec
+target_link_libraries(main_exe
     PUBLIC
         Eigen3::Eigen
         ${OpenCV_LIBS}
         ${Boost_LIBRARIES}
         pthread
-=======
-add_executable(main_exe ${SOURCES})
 
-# ---------- Include dirs & link libs ----------
-# Your own headers
-target_include_directories(main_exe
-    PUBLIC ${PROJECT_SOURCE_DIR}/include
-)
-
-# Header-only libraries are still “linked” so their include dirs propagate
-target_link_libraries(main_exe
-    PUBLIC Eigen3::Eigen
->>>>>>> udp_serial
 )
