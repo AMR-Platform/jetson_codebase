@@ -13,7 +13,6 @@ public:
     void start();
     void stop();
     bool isRunning() const;
-
     std::string getLastMessage();
 
 private:
