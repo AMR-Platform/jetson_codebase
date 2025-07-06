@@ -18,7 +18,7 @@ private:
     // Timing
     std::chrono::steady_clock::time_point lastUpdate_;
     double dt_;
-    static constexpr double DEFAULT_DT = 0.02;  // 50Hz default
+    static constexpr double DEFAULT_DT = 0.01;  // 100Hz default to match I2C telemetry
     
     // Data logging
     std::ofstream logFile_;
@@ -97,9 +97,9 @@ public:
             // Perform EKF prediction and updates
             updateEKF(sensor);
             
-            // Print status every 50 iterations (about 1Hz at 50Hz)
+            // Print status every 100 iterations (about 1Hz at 100Hz)
             static int counter = 0;
-            if (++counter >= 50) {
+            if (++counter >= 100) {
                 printStatus(sensor);
                 counter = 0;
             }
@@ -110,7 +110,7 @@ public:
             }
             
             // Sleep to maintain approximate frequency
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));  // ~50Hz
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));  // ~100Hz to match I2C
         }
     }
     
