@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "dense": "cpp",
-        "cholesky": "cpp"
+        "cholesky": "cpp",
+        "mutex": "cpp",
+        "iostream": "cpp"
     }
 }
