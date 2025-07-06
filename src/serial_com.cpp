@@ -122,8 +122,14 @@ bool Serial_Com::parseTelemetry(const std::string &line)
     /* matches send_telemetry() exactly */
     std::istringstream iss(line);
     SensorPacket s;
+    
+    // Parse basic telemetry first (matches current AVR format)
     if (!(iss >> s.yaw >> s.roll >> s.pitch >> s.encL >> s.encR >> s.vbat1 >> s.vbat2 >> s.cliffL >> s.cliffC >> s.cliffR >> s.emergency >> s.profileDone))
         return false;
+    
+    // Try to parse additional IMU data if available (optional - won't fail if not present)
+    // Expected format extension: ... emergency profileDone accelX accelY gyroZ
+    iss >> s.accelX >> s.accelY >> s.gyroZ;
 
     /* basic deltas / velocities */
     static bool init = false;
