@@ -1,56 +1,89 @@
 #ifndef SERIAL_COM_HPP
 #define SERIAL_COM_HPP
 
+#include <atomic>
+#include <cstdint>
+#include <mutex>
 #include <string>
+#include <termios.h>
 
-struct SensorPacket {
-    // Raw values from packet
-    float yaw = 0.0f;
-    float roll = 0.0f;
-    float pitch = 0.0f;
-    long encoderLeft = 0;
-    long encoderRight = 0;
-    unsigned int bat1Voltage = 0;
-    unsigned int bat2Voltage = 0;
-    unsigned int cliffLeft = 0;
-    unsigned int cliffCenter = 0;
-    unsigned int cliffRight = 0;
-    unsigned int emergencyFlag = 0;
-
-    // Derived values
-    float deltaYaw = 0.0f;
-    float deltaEncL = 0.0f;
-    float deltaEncR = 0.0f;
-    float linearVelocity = 0.0f;
-    float angularVelocity = 0.0f;
-
-    // Optional pose estimate (updated if needed)
-    float x = 0.0f;
-    float y = 0.0f;
-    float theta = 0.0f;
+/* ———  MCU-side enums brought to the host  ——— */
+enum ControlMode : uint8_t
+{
+    AUTONOMOUS = 0,
+    TELEOPERATOR = 1
+};
+enum DebugMode : uint8_t
+{
+    DEBUG_OFF = 0,
+    MOTION_DEBUG = 1,
+    RX_ECHO = 2,
+    MD_AND_ECHO = 3
 };
 
-// Global instance for access by other modules
-extern SensorPacket GlobalSensorData;
+/* ———  inbound packets ——— */
+struct SensorPacket
+{
+    float yaw{}, roll{}, pitch{};
+    long encL{}, encR{};
+    uint16_t vbat1{}, vbat2{}, cliffL{}, cliffC{}, cliffR{};
+    uint8_t emergency{}, profileDone{};
 
-class Serial_Com {
+    /* simple helpers filled by Serial_Com */
+    float dYaw{}, dEncL{}, dEncR{}, linVel{}, angVel{};
+};
+
+struct MotionDebugPacket
+{
+    float spdL{}, spdR{}, vel{}, omg{}, dist{}, ang{}, loopDt{};
+};
+
+/* ———  outbound commands (host → MCU) ———  */
+struct CommandPacket
+{
+    ControlMode mode{AUTONOMOUS};
+    DebugMode dbg{DEBUG_OFF};
+
+    /* AUTONOMOUS fields */
+    float distance{}, angle{};
+    uint16_t maxVel{}, maxOmega{}, lastVel{}, lastOmega{};
+    float linAcc{}, angAcc{};
+
+    /* TELEOPERATOR fields (treated as bools 0/1) */
+    uint8_t f{}, b{}, l{}, r{};
+};
+
+class Serial_Com
+{
 public:
-    Serial_Com(const std::string& port_name, int baud_rate);
+    explicit Serial_Com(const std::string &port, int baud = 115200);
     ~Serial_Com();
 
-    void update(); // Reads a line and updates GlobalSensorData
+    /* non-blocking, call as often as you wish */
+    void spinOnce();
+
+    /* host → MCU */
+    void sendCommand(const CommandPacket &cmd);
+
+    /* MCU → host : thread-safe getters  */
+    SensorPacket getSensor() const;
+    MotionDebugPacket getDebug() const;
+    DebugMode debugMode() const { return dbgMode.load(); }
 
 private:
-    int serial_fd;
-    std::string lastLine;
+    int fd{-1};
+    std::string rxBuf;
+    mutable std::mutex mtx;
 
-    // For delta calculations
-    float last_yaw = 0.0f;
-    long last_encL = 0;
-    long last_encR = 0;
-    bool initialized = false;
+    SensorPacket sensor{};
+    MotionDebugPacket dbg{};
+    std::atomic<DebugMode> dbgMode{DEBUG_OFF};
 
-    void parseAndUpdate(const std::string& line);
+    /* helpers */
+    bool parseTelemetry(const std::string &line);
+    bool parseDebug(const std::string &line);
+    static speed_t baudToTermios(int baud);
+    void writeLine(const std::string &line);
 };
 
 #endif // SERIAL_COM_HPP
