@@ -29,6 +29,10 @@ struct SensorPacket
     uint16_t vbat1{}, vbat2{}, cliffL{}, cliffC{}, cliffR{};
     uint8_t emergency{}, profileDone{};
 
+    /* IMU accelerometer and gyroscope data (2D focus) */
+    float accelX{}, accelY{};        // Accelerometer readings X,Y (m/s²)
+    float gyroZ{};                   // Gyroscope Z-axis reading (rad/s)
+
     /* simple helpers filled by Serial_Com */
     float dYaw{}, dEncL{}, dEncR{}, linVel{}, angVel{};
 };
