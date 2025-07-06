@@ -19,8 +19,9 @@ file(GLOB VENDOR_SRC ${LAKI_ROOT}/src/*.cpp)
 # ---------- Your Project Code ----------
 file(GLOB_RECURSE USER_SRC src/*.cpp)
 
-# Remove main_ekf.cpp from main_exe sources for separate compilation
+# Remove main_ekf.cpp and test_ekf.cpp from main_exe sources for separate compilation
 list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/main_ekf.cpp)
+list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/test_ekf.cpp)
 
 # ---------- Executables ----------
 # Original main executable (without EKF integration)
