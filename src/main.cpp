@@ -1,7 +1,6 @@
 #include "lidar_handler.hpp"
 #include <opencv2/opencv.hpp>
 #include "serial_com.hpp"
-#include "ekf.hpp"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -93,7 +92,7 @@ int main()
     // cv::namedWindow("LakiBeam Viewer");
     auto next = std::chrono::steady_clock::now();
 
-    
+
     int loop_count = 0;
     std::cout << "\n=== Starting Main Loop ===" << std::endl;
 
