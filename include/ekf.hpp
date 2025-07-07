@@ -1,6 +1,6 @@
-// ekf.hpp - Extended Kalman Filter for dead reckoning
+#ifndef EKF_HPP
+#define EKF_HPP
 
-#pragma once
 #include <Eigen/Dense>
 
 struct Pose2D {
@@ -26,3 +26,5 @@ private:
 
     float normalizeAngle(float angle);
 };
+
+#endif   // EKF_HPP

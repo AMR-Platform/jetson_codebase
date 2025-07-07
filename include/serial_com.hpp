@@ -6,84 +6,114 @@
 #include <mutex>
 #include <string>
 #include <termios.h>
+#include <vector>
+#include "config.hpp"
 
-/* ———  MCU-side enums brought to the host  ——— */
-enum ControlMode : uint8_t
-{
-    AUTONOMOUS = 0,
-    TELEOPERATOR = 1
-};
-enum DebugMode : uint8_t
-{
-    DEBUG_OFF = 0,
-    MOTION_DEBUG = 1,
-    RX_ECHO = 2,
-    MD_AND_ECHO = 3
-};
-
-/* ———  inbound packets ——— */
+/* ——— inbound packets ——— */
 struct SensorPacket
 {
     float yaw{}, roll{}, pitch{};
     long encL{}, encR{};
     uint16_t vbat1{}, vbat2{}, cliffL{}, cliffC{}, cliffR{};
     uint8_t emergency{}, profileDone{};
-
-    /* simple helpers filled by Serial_Com */
+    
+    // Simple helpers filled by Serial_Com
     float dYaw{}, dEncL{}, dEncR{}, linVel{}, angVel{};
+    
+    // Validity flag
+    bool valid{false};
 };
 
 struct MotionDebugPacket
 {
     float spdL{}, spdR{}, vel{}, omg{}, dist{}, ang{}, loopDt{};
+    bool valid{false};
 };
 
-/* ———  outbound commands (host → MCU) ———  */
+struct CommandEchoPacket
+{
+    float distance{}, angle{};
+    uint16_t maxVel{}, maxOmega{}, lastVel{}, lastOmega{};
+    float linAcc{}, angAcc{};
+    bool valid{false};
+};
+
+/* ——— outbound commands (host → MCU) ——— */
 struct CommandPacket
 {
     ControlMode mode{AUTONOMOUS};
     DebugMode dbg{DEBUG_OFF};
-
-    /* AUTONOMOUS fields */
+    
+    // AUTONOMOUS fields
     float distance{}, angle{};
     uint16_t maxVel{}, maxOmega{}, lastVel{}, lastOmega{};
     float linAcc{}, angAcc{};
-
-    /* TELEOPERATOR fields (treated as bools 0/1) */
+    
+    // TELEOPERATOR fields (treated as bools 0/1)
     uint8_t f{}, b{}, l{}, r{};
 };
 
 class Serial_Com
 {
 public:
-    explicit Serial_Com(const std::string &port, int baud = 115200);
+    explicit Serial_Com(const std::string &port, int baud = DEFAULT_BAUD_RATE);
     ~Serial_Com();
-
-    /* non-blocking, call as often as you wish */
+    
+    // Non-blocking, call as often as you wish
     void spinOnce();
-
-    /* host → MCU */
+    
+    // Host → MCU
     void sendCommand(const CommandPacket &cmd);
-
-    /* MCU → host : thread-safe getters  */
+    
+    // MCU → host : thread-safe getters
     SensorPacket getSensor() const;
     MotionDebugPacket getDebug() const;
-    DebugMode debugMode() const { return dbgMode.load(); }
-
+    CommandEchoPacket getCommandEcho() const;
+    
+    // System state management
+    void setSystemState(const SystemState &state);
+    SystemState getSystemState() const;
+    
+    // Debug and testing functions
+    void testCommunication();
+    void printSensorData(const SensorPacket &sensor) const;
+    void printDebugData(const MotionDebugPacket &debug) const;
+    void printCommandEcho(const CommandEchoPacket &echo) const;
+    
+    // Connection status
+    bool isConnected() const { return fd >= 0; }
+    
+    // Static utility functions
+    static std::vector<std::string> getAvailablePorts();
+    
 private:
     int fd{-1};
     std::string rxBuf;
     mutable std::mutex mtx;
-
+    
+    // Data packets
     SensorPacket sensor{};
-    MotionDebugPacket dbg{};
-    std::atomic<DebugMode> dbgMode{DEBUG_OFF};
-
-    /* helpers */
-    bool parseTelemetry(const std::string &line);
-    bool parseDebug(const std::string &line);
+    MotionDebugPacket debug{};
+    CommandEchoPacket cmdEcho{};
+    
+    // System state
+    SystemState sysState{};
+    
+    // Parsing helpers
+    bool parseCombinedLine(const std::string &line);
+    bool parseTelemetryOnly(const std::string &line);
+    bool parseDebugOnly(const std::string &line);
+    bool parseCommandEcho(const std::string &line);
+    
+    // Utility functions
     static speed_t baudToTermios(int baud);
     void writeLine(const std::string &line);
+    void updateSensorDeltas(SensorPacket &s);
+    
+    // Static variables for delta calculations
+    static bool deltaInit;
+    static float lastYaw;
+    static long lastEncL, lastEncR;
 };
 
 #endif // SERIAL_COM_HPP
