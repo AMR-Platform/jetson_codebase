@@ -1,6 +1,4 @@
-// serial_com.cpp
 #include "serial_com.hpp"
-
 #include <cmath>
 #include <cstring>
 #include <fcntl.h>
@@ -14,22 +12,20 @@
 #include <chrono>
 #include <dirent.h>
 
-// Static member initialization
 bool Serial_Com::deltaInit = false;
 float Serial_Com::lastYaw = 0.0f;
 long Serial_Com::lastEncL = 0;
 long Serial_Com::lastEncR = 0;
 
-/* ———————————  ctor / dtor  ——————————— */
+/* ——————————— ctor / dtor ——————————— */
 Serial_Com::Serial_Com(const std::string &port, int baud)
 {
     fd = ::open(port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0)
     {
         perror("open");
-        throw std::runtime_error("serial open failed for port: " + port);
+        throw std::runtime_error("serial open failed");
     }
-
     termios tty{};
     if (tcgetattr(fd, &tty) != 0)
     {
@@ -38,70 +34,48 @@ Serial_Com::Serial_Com(const std::string &port, int baud)
         throw std::runtime_error("tcgetattr failed");
     }
 
-    // Set baud rates
     cfsetospeed(&tty, baudToTermios(baud));
     cfsetispeed(&tty, baudToTermios(baud));
-
-    // Configure 8N1
-    tty.c_cflag &= ~PARENB;        // No parity
-    tty.c_cflag &= ~CSTOPB;        // 1 stop bit
-    tty.c_cflag &= ~CSIZE;         // Clear data size bits
-    tty.c_cflag |= CS8;            // 8 data bits
-    tty.c_cflag &= ~CRTSCTS;       // No hardware flow control
-    tty.c_cflag |= CREAD | CLOCAL; // Enable receiver, ignore modem lines
-
-    // Input flags
-    tty.c_iflag &= ~(IXON | IXOFF | IXANY);                                            // Turn off s/w flow ctrl
-    tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);        // Disable any special handling
-
-    // Output flags
-    tty.c_oflag &= ~OPOST; // Prevent special interpretation of output bytes
-    tty.c_oflag &= ~ONLCR; // Prevent conversion of newline to CR/LF
-
-    // Local flags
-    tty.c_lflag &= ~ICANON; // Disable canonical mode
-    tty.c_lflag &= ~ECHO;   // Disable echo
-    tty.c_lflag &= ~ECHOE;  // Disable erasure
-    tty.c_lflag &= ~ECHONL; // Disable new-line echo
-    tty.c_lflag &= ~ISIG;   // Disable interpretation of INTR, QUIT and SUSP
-
-    // VMIN and VTIME
-    tty.c_cc[VMIN]  = 0;  // Non-blocking read
-    tty.c_cc[VTIME] = 1;  // 0.1 second timeout
-
+    tty.c_cflag &= ~PARENB;
+    tty.c_cflag &= ~CSTOPB;
+    tty.c_cflag &= ~CSIZE;
+    tty.c_cflag |= CS8;
+    tty.c_cflag &= ~CRTSCTS;
+    tty.c_cflag |= CREAD | CLOCAL;
+    tty.c_iflag &= ~(IXON | IXOFF | IXANY | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+    tty.c_oflag &= ~(OPOST | ONLCR);
+    tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHONL | ISIG);
+    tty.c_cc[VMIN] = 0;
+    tty.c_cc[VTIME] = 1;
     if (tcsetattr(fd, TCSANOW, &tty) != 0)
     {
         perror("tcsetattr");
         ::close(fd);
         throw std::runtime_error("tcsetattr failed");
     }
-
-    // Flush any existing data
     tcflush(fd, TCIOFLUSH);
-
-    std::cout << "[SERIAL] Opened port " << port << " at " << baud << " baud" << std::endl;
+    std::cout << "[SERIAL] Opened port " << port << " at " << baud << " baud\n";
 }
 
 Serial_Com::~Serial_Com()
 {
     if (fd >= 0)
     {
-        std::cout << "[SERIAL] Closing serial port" << std::endl;
+        std::cout << "[SERIAL] Closing serial port\n";
         ::close(fd);
     }
 }
 
-/* ———————————  public API  ——————————— */
-void Serial_Com::spinOnce()
+/* ——————————— public API ——————————— */
+void Serial_Com::spinOnce(CommandPacket &cmd)
 {
-    if (fd < 0) return;
-
+    if (fd < 0)
+        return;
     char buffer[256];
-    int bytes_read = ::read(fd, buffer, sizeof(buffer) - 1);
-
-    if (bytes_read > 0)
+    int bytes = ::read(fd, buffer, sizeof(buffer) - 1);
+    if (bytes > 0)
     {
-        for (int i = 0; i < bytes_read; i++)
+        for (int i = 0; i < bytes; ++i)
         {
             char ch = buffer[i];
             if (ch == '\n' || ch == '\r')
@@ -109,86 +83,75 @@ void Serial_Com::spinOnce()
                 if (!rxBuf.empty())
                 {
                     std::cout << "[RAW] " << rxBuf << std::endl;
+                    bool handled = false;
 
-                    // Parse based on current system state
-                    if (sysState.expectDebugData && sysState.expectCommandEcho)
+                    // 1) command-echo right after send
+                    if (sysState.expectCommandEcho && cmd.cmdStatus == CMD_JUST_WROTE)
                     {
-                        // Could be debug+telemetry combined, command echo, or just telemetry
-                        if (!parseCombinedLine(rxBuf) && !parseCommandEcho(rxBuf))
-                            parseTelemetryOnly(rxBuf);
+                        if (parseCommandEcho(rxBuf))
+                        {
+                            cmd.cmdStatus = CMD_EMPTY;
+                            handled = true;
+                        }
                     }
-                    else if (sysState.expectDebugData)
+                    // 2) debug+telemetry combined
+                    if (!handled && sysState.expectDebugData)
                     {
-                        // Could be debug+telemetry combined or just telemetry
-                        if (!parseCombinedLine(rxBuf))
-                            parseTelemetryOnly(rxBuf);
+                        handled = parseCombinedLine(rxBuf);
                     }
-                    else if (sysState.expectCommandEcho)
+                    // 3) echo fallback
+                    if (!handled && sysState.expectCommandEcho)
                     {
-                        // Could be command echo or just telemetry
-                        if (!parseCommandEcho(rxBuf))
-                            parseTelemetryOnly(rxBuf);
+                        handled = parseCommandEcho(rxBuf);
+                        if (handled)
+                            cmd.cmdStatus = CMD_EMPTY;
                     }
-                    else
-                    {
-                        // Only expecting telemetry
+                    // 4) pure telemetry
+                    if (!handled)
                         parseTelemetryOnly(rxBuf);
-                    }
 
                     rxBuf.clear();
                 }
             }
-            else if (ch >= 32 && ch <= 126) // Only printable ASCII
+            else if (ch >= 32 && ch <= 126)
             {
                 rxBuf += ch;
             }
         }
     }
-    else if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+    else if (bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
     {
         perror("read");
     }
 }
 
-void Serial_Com::sendCommand(const CommandPacket &cmd)
+void Serial_Com::sendCommand(CommandPacket &cmd)
 {
-    if (fd < 0) return;
-
+    if (fd < 0)
+        return;
     std::ostringstream oss;
     if (cmd.mode == AUTONOMOUS)
     {
-        oss << int(cmd.mode) << ','
-            << int(cmd.dbg)  << ','
-            << cmd.distance  << ','
-            << cmd.angle     << ','
-            << cmd.maxVel    << ','
-            << cmd.maxOmega  << ','
-            << cmd.lastVel   << ','
-            << cmd.lastOmega << ','
-            << cmd.linAcc    << ','
-            << cmd.angAcc    << "\r\n";
+        oss << int(cmd.mode) << ',' << int(cmd.dbg) << ','
+            << cmd.distance << ',' << cmd.angle << ','
+            << cmd.maxVel << ',' << cmd.maxOmega << ','
+            << cmd.lastVel << ',' << cmd.lastOmega << ','
+            << cmd.linAcc << ',' << cmd.angAcc << "\r\n";
     }
-    else // TELEOPERATOR
+    else
     {
-        oss << int(cmd.mode) << ','
-            << int(cmd.dbg)  << ','
-            << "0,0,"                  // distance, angle placeholders
-            << int(cmd.f)   << ','    // forward
-            << int(cmd.b)   << ','    // backward
-            << int(cmd.l)   << ','    // left
-            << int(cmd.r)   << ','    // right
-            << "0,0\r\n";             // acc placeholders
+        oss << int(cmd.mode) << ',' << int(cmd.dbg) << ",0,0,"
+            << int(cmd.f) << ',' << int(cmd.b) << ',' << int(cmd.l) << ',' << int(cmd.r) << ",0,0\r\n";
     }
+    auto str = oss.str();
+    std::cout << "[SEND] " << str;
+    writeLine(str);
+    cmd.cmdStatus = CMD_JUST_WROTE;
 
-    std::string command = oss.str();
-    std::cout << "[SEND] " << command;
-    writeLine(command);
-
-    // Update system state
     {
         std::scoped_lock lk(mtx);
         sysState.controlMode = cmd.mode;
-        sysState.debugMode   = cmd.dbg;
+        sysState.debugMode = cmd.dbg;
         sysState.updateExpectations();
     }
 }
@@ -198,175 +161,146 @@ SensorPacket Serial_Com::getSensor() const
     std::scoped_lock lk(mtx);
     return sensor;
 }
-
 MotionDebugPacket Serial_Com::getDebug() const
 {
     std::scoped_lock lk(mtx);
     return debug;
 }
-
 CommandEchoPacket Serial_Com::getCommandEcho() const
 {
     std::scoped_lock lk(mtx);
     return cmdEcho;
 }
 
-void Serial_Com::setSystemState(const SystemState &state)
+void Serial_Com::setSystemState(const SystemState &s)
 {
     std::scoped_lock lk(mtx);
-    sysState = state;
+    sysState = s;
     sysState.updateExpectations();
 }
-
 SystemState Serial_Com::getSystemState() const
 {
     std::scoped_lock lk(mtx);
     return sysState;
 }
 
-/* ———————————  parsing functions  ——————————— */
+/* ——————————— parsers ——————————— */
 bool Serial_Com::parseCombinedLine(const std::string &line)
 {
-    // Expected format:
-    //   "SpdL: +0.0 SpdR: +0.0 Vel: +0.0 Omg: +0.0 dist: +0.0 ang: +0.0 dt: 10045.0
-    //    0.00 0.00 0.00  0 0 441 459 414 396 381 0 1"
-    if (line.find("SpdL:") != 0)
+    // 7 debug floats + 9 telem floats + 2 longs + 7 ints = 25
+    float spdL, spdR, vel, omg, dist, ang, dt;
+    float yaw, roll, pitch, gX, gY, gZ, aX, aY, aZ;
+    long eL, eR;
+    unsigned v1, v2, cL, cC, cR, em, pr;
+    int p = std::sscanf(
+        line.c_str(),
+        "%f %f %f %f %f %f %f "
+        "%f %f %f %f %f %f %f %f %f "
+        "%ld %ld %u %u %u %u %u %u %u",
+        &spdL, &spdR, &vel, &omg, &dist, &ang, &dt,
+        &yaw, &roll, &pitch, &gX, &gY, &gZ, &aX, &aY, &aZ,
+        &eL, &eR, &v1, &v2, &cL, &cC, &cR, &em, &pr);
+    if (p != 25)
         return false;
 
-    MotionDebugPacket d{};
-    float yaw, roll, pitch;
-    long encL, encR;
-    uint16_t vbat1, vbat2, cliffL, cliffC, cliffR;
-    uint8_t emergency, profileDone;
+    MotionDebugPacket d{spdL, spdR, vel, omg, dist, ang, dt, true};
+    SensorPacket s;
+    s.yaw = yaw;
+    s.roll = roll;
+    s.pitch = pitch;
+    s.gyroX = gX;
+    s.gyroY = gY;
+    s.gyroZ = gZ;
+    s.accelX = aX;
+    s.accelY = aY;
+    s.accelZ = aZ;
+    s.encL = eL;
+    s.encR = eR;
+    s.vbat1 = v1;
+    s.vbat2 = v2;
+    s.cliffL = cL;
+    s.cliffC = cC;
+    s.cliffR = cR;
+    s.emergency = uint8_t(em);
+    s.profileDone = uint8_t(pr);
+    s.valid = true;
 
-    int parsed = std::sscanf(
-        line.c_str(),
-        "SpdL: %f SpdR: %f Vel: %f Omg: %f dist: %f ang: %f dt: %f "
-        "%f %f %f %ld %ld %hu %hu %hu %hu %hu %hhu %hhu",
-        &d.spdL, &d.spdR, &d.vel, &d.omg, &d.dist, &d.ang, &d.loopDt,
-        &yaw, &roll, &pitch, &encL, &encR,
-        &vbat1, &vbat2, &cliffL, &cliffC, &cliffR, &emergency, &profileDone
-    );
-
-    if (parsed == 19)
+    updateSensorDeltas(s);
     {
-        d.valid = true;
-        SensorPacket s{};
-        s.yaw         = yaw;
-        s.roll        = roll;
-        s.pitch       = pitch;
-        s.encL        = encL;
-        s.encR        = encR;
-        s.vbat1       = vbat1;
-        s.vbat2       = vbat2;
-        s.cliffL      = cliffL;
-        s.cliffC      = cliffC;
-        s.cliffR      = cliffR;
-        s.emergency   = emergency;
-        s.profileDone = profileDone;
-        s.valid       = true;
-
-        updateSensorDeltas(s);
-        {
-            std::scoped_lock lk(mtx);
-            debug  = d;
-            sensor = s;
-        }
-        std::cout << "[PARSED] Combined debug+telemetry data" << std::endl;
-        return true;
+        std::scoped_lock lk(mtx);
+        debug = d;
+        sensor = s;
     }
-    return false;
+    std::cout << "[PARSED] Combined debug+telemetry data\n";
+    return true;
 }
 
 bool Serial_Com::parseTelemetryOnly(const std::string &line)
 {
-    // MCU now sends exactly 18 fields:
-    //  yaw roll pitch gyroX gyroY gyroZ accelX accelY accelZ
-    //  encL encR vbat1 vbat2 cliffL cliffC cliffR emergency profileDone
-    float yaw, roll, pitch;
-    float gyroX, gyroY, gyroZ;
-    float accelX, accelY, accelZ;
-    long encL, encR;
-    unsigned vbat1, vbat2, cliffL, cliffC, cliffR, emergency, profileDone;
-
-    int parsed = std::sscanf(
+    // 18 fields: 9 floats, 2 longs, 7 ints
+    float yaw, roll, pitch, gX, gY, gZ, aX, aY, aZ;
+    long eL, eR;
+    unsigned v1, v2, cL, cC, cR, em, pr;
+    int p = std::sscanf(
         line.c_str(),
         "%f %f %f %f %f %f %f %f %f %ld %ld %u %u %u %u %u %u %u",
-        &yaw, &roll, &pitch,
-        &gyroX, &gyroY, &gyroZ,
-        &accelX, &accelY, &accelZ,
-        &encL, &encR,
-        &vbat1, &vbat2,
-        &cliffL, &cliffC, &cliffR,
-        &emergency, &profileDone
-    );
-
-    if (parsed != 18)
+        &yaw, &roll, &pitch, &gX, &gY, &gZ, &aX, &aY, &aZ,
+        &eL, &eR, &v1, &v2, &cL, &cC, &cR, &em, &pr);
+    if (p != 18)
     {
-        std::cout << "[PARSE] Failed to parse telemetry: " << line << std::endl;
+        std::cout << "[PARSE] Failed telemetry: " << line << "\n";
         return false;
     }
 
     SensorPacket s;
-    s.yaw         = yaw;
-    s.roll        = roll;
-    s.pitch       = pitch;
-    s.gyroX       = gyroX;
-    s.gyroY       = gyroY;
-    s.gyroZ       = gyroZ;
-    s.accelX      = accelX;
-    s.accelY      = accelY;
-    s.accelZ      = accelZ;
-    s.encL        = encL;
-    s.encR        = encR;
-    s.vbat1       = static_cast<uint16_t>(vbat1);
-    s.vbat2       = static_cast<uint16_t>(vbat2);
-    s.cliffL      = static_cast<uint16_t>(cliffL);
-    s.cliffC      = static_cast<uint16_t>(cliffC);
-    s.cliffR      = static_cast<uint16_t>(cliffR);
-    s.emergency   = static_cast<uint8_t>(emergency);
-    s.profileDone = static_cast<uint8_t>(profileDone);
-    s.valid       = true;
+    s.yaw = yaw;
+    s.roll = roll;
+    s.pitch = pitch;
+    s.gyroX = gX;
+    s.gyroY = gY;
+    s.gyroZ = gZ;
+    s.accelX = aX;
+    s.accelY = aY;
+    s.accelZ = aZ;
+    s.encL = eL;
+    s.encR = eR;
+    s.vbat1 = v1;
+    s.vbat2 = v2;
+    s.cliffL = cL;
+    s.cliffC = cC;
+    s.cliffR = cR;
+    s.emergency = uint8_t(em);
+    s.profileDone = uint8_t(pr);
+    s.valid = true;
 
     updateSensorDeltas(s);
     {
         std::scoped_lock lk(mtx);
         sensor = s;
     }
-
-    std::cout << "[PARSED] Telemetry only" << std::endl;
+    std::cout << "[PARSED] Telemetry only\n";
     return true;
 }
 
 bool Serial_Com::parseDebugOnly(const std::string &line)
 {
-    // Expected format: "SpdL: +0.0 SpdR: +0.0 Vel: +0.0 Omg: +0.0 dist: +0.0 ang: +0.0 dt: 10045.0"
-    if (line.find("SpdL:") != 0) return false;
-
-    MotionDebugPacket d{};
-    if (std::sscanf(
-            line.c_str(),
-            "SpdL: %f SpdR: %f Vel: %f Omg: %f dist: %f ang: %f dt: %f",
-            &d.spdL, &d.spdR, &d.vel, &d.omg, &d.dist, &d.ang, &d.loopDt) != 7)
-    {
-        std::cout << "[PARSE] Failed to parse debug: " << line << std::endl;
+    float spdL, spdR, vel, omg, dist, ang, dt;
+    if (std::sscanf(line.c_str(), "%f %f %f %f %f %f %f",
+                    &spdL, &spdR, &vel, &omg, &dist, &ang, &dt) != 7)
         return false;
-    }
-
-    d.valid = true;
+    MotionDebugPacket d{spdL, spdR, vel, omg, dist, ang, dt, true};
     {
         std::scoped_lock lk(mtx);
         debug = d;
     }
-    std::cout << "[PARSED] Debug only" << std::endl;
+    std::cout << "[PARSED] Debug only\n";
     return true;
 }
 
 bool Serial_Com::parseCommandEcho(const std::string &line)
 {
-    // Expected format: "CMD d=500.0 a=90.0 vmax=300 wmax=120 vend=0 wend=0 acc=500.0 aacc=360.0"
-    if (line.find("CMD") != 0) return false;
-
+    if (line.rfind("CMD", 0) != 0)
+        return false;
     CommandEchoPacket e{};
     if (std::sscanf(
             line.c_str(),
@@ -375,62 +309,46 @@ bool Serial_Com::parseCommandEcho(const std::string &line)
             &e.maxVel, &e.maxOmega,
             &e.lastVel, &e.lastOmega,
             &e.linAcc, &e.angAcc) != 8)
-    {
-        std::cout << "[PARSE] Failed to parse command echo: " << line << std::endl;
         return false;
-    }
-
     e.valid = true;
     {
         std::scoped_lock lk(mtx);
         cmdEcho = e;
     }
-    std::cout << "[PARSED] Command echo" << std::endl;
+    std::cout << "[PARSED] Command echo\n";
     return true;
 }
 
-/* ———————————  utility functions  ——————————— */
+/* ——————————— utilities ——————————— */
 void Serial_Com::updateSensorDeltas(SensorPacket &s)
 {
     if (deltaInit)
     {
         s.dYaw = s.yaw - lastYaw;
-        // Handle wraparound
-        if (s.dYaw > 180.0f)  s.dYaw -= 360.0f;
-        if (s.dYaw < -180.0f) s.dYaw += 360.0f;
-
-        s.dEncL  = float(s.encL - lastEncL);
-        s.dEncR  = float(s.encR - lastEncR);
-        s.linVel  = (s.dEncL + s.dEncR) * 0.5f;
-        s.angVel  = (s.dEncR - s.dEncL);
+        if (s.dYaw > 180)
+            s.dYaw -= 360;
+        if (s.dYaw < -180)
+            s.dYaw += 360;
+        s.dEncL = float(s.encL - lastEncL);
+        s.dEncR = float(s.encR - lastEncR);
+        s.linVel = (s.dEncL + s.dEncR) / 2;
+        s.angVel = (s.dEncR - s.dEncL);
     }
     else
     {
-        s.dYaw = s.dEncL = s.dEncR = s.linVel = s.angVel = 0.0f;
+        s.dYaw = s.dEncL = s.dEncR = s.linVel = s.angVel = 0;
         deltaInit = true;
     }
-
-    lastYaw   = s.yaw;
-    lastEncL  = s.encL;
-    lastEncR  = s.encR;
+    lastYaw = s.yaw;
+    lastEncL = s.encL;
+    lastEncR = s.encR;
 }
 
 void Serial_Com::writeLine(const std::string &line)
 {
-    if (fd < 0) return;
-
-    ssize_t bytes_written = ::write(fd, line.data(), line.size());
-    if (bytes_written < 0)
-    {
-        perror("write");
-    }
-    else if (bytes_written != static_cast<ssize_t>(line.size()))
-    {
-        std::cout << "[WRITE] Warning: only wrote " << bytes_written
-                  << " of " << line.size() << " bytes" << std::endl;
-    }
-
-    // Force flush
+    if (fd < 0)
+        return;
+    ::write(fd, line.data(), line.size());
     fsync(fd);
 }
 
@@ -438,15 +356,36 @@ speed_t Serial_Com::baudToTermios(int baud)
 {
     switch (baud)
     {
-    case 9600:   return B9600;
-    case 19200:  return B19200;
-    case 38400:  return B38400;
-    case 57600:  return B57600;
-    case 115200: return B115200;
+    case 9600:
+        return B9600;
+    case 19200:
+        return B19200;
+    case 38400:
+        return B38400;
+    case 57600:
+        return B57600;
+    case 115200:
+        return B115200;
     default:
-        std::cout << "[WARN] Unsupported baud rate " << baud << ", using 9600" << std::endl;
         return B9600;
     }
+}
+
+std::vector<std::string> Serial_Com::getAvailablePorts()
+{
+    std::vector<std::string> ports;
+    for (auto pat : {"/dev/ttyACM", "/dev/ttyUSB", "/dev/ttyS"})
+        for (int i = 0; i < 10; i++)
+        {
+            std::string p = pat + std::to_string(i);
+            int fd = ::open(p.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+            if (fd >= 0)
+            {
+                ports.push_back(p);
+                ::close(fd);
+            }
+        }
+    return ports;
 }
 
 /* ———————————  debug and testing functions  ——————————— */
@@ -456,48 +395,55 @@ void Serial_Com::testCommunication()
 
     // Test 1: Enable motion debug mode
     CommandPacket cmd;
-    cmd.mode    = AUTONOMOUS;
-    cmd.dbg     = MOTION_DEBUG;
-    cmd.distance=0; cmd.angle=0; cmd.maxVel=0; cmd.maxOmega=0;
-    cmd.lastVel=0; cmd.lastOmega=0; cmd.linAcc=0; cmd.angAcc=0;
+    cmd.mode = AUTONOMOUS;
+    cmd.dbg = MOTION_DEBUG;
+    cmd.distance = 0;
+    cmd.angle = 0;
+    cmd.maxVel = 0;
+    cmd.maxOmega = 0;
+    cmd.lastVel = 0;
+    cmd.lastOmega = 0;
+    cmd.linAcc = 0;
+    cmd.angAcc = 0;
 
     std::cout << "Sending command to enable MOTION_DEBUG..." << std::endl;
     sendCommand(cmd);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     // Test 2: Send a simple movement command
-    cmd.dbg      = MD_AND_ECHO; // Enable both motion debug and echo
-    cmd.distance = 100.0f;      // 100mm forward
-    cmd.angle    = 0.0f;
-    cmd.maxVel   = 200;         // 200 mm/s
+    cmd.dbg = MD_AND_ECHO; // Enable both motion debug and echo
+    cmd.distance = 1000.0f; // 1000mm forward
+    cmd.angle = 0.0f;
+    cmd.maxVel = 200; // 200 mm/s
     cmd.maxOmega = 0;
-    cmd.lastVel  = 0; cmd.lastOmega = 0;
-    cmd.linAcc   = 500.0f;      // 500 mm/s²
-    cmd.angAcc   = 0.0f;
+    cmd.lastVel = 0;
+    cmd.lastOmega = 0;
+    cmd.linAcc = 100.0f; // 100 mm/s²
+    cmd.angAcc = 0.0f;
 
     std::cout << "Sending movement command (100mm forward)..." << std::endl;
     sendCommand(cmd);
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
     // Test 3: Send a rotation command
     cmd.distance = 0.0f;
-    cmd.angle    = 90.0f;       // 90 deg turn
-    cmd.maxVel   = 0;           // no linear
-    cmd.maxOmega = 120;         // 120 deg/s
-    cmd.linAcc   = 0.0f;
-    cmd.angAcc   = 360.0f;      // 360 deg/s²
+    cmd.angle = 180.0f;  // 180 deg turn
+    cmd.maxVel = 0;     // no linear
+    cmd.maxOmega = 120; // 120 deg/s
+    cmd.linAcc = 0.0f;
+    cmd.angAcc = 360.0f; // 360 deg/s²
 
     std::cout << "Sending rotation command (90 degrees)..." << std::endl;
     sendCommand(cmd);
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
     // Test 4: Test teleoperator mode
     cmd.mode = TELEOPERATOR;
-    cmd.dbg  = RX_ECHO;
-    cmd.f    = 1;  // forward
-    cmd.b    = 0;
-    cmd.l    = 0;
-    cmd.r    = 0;
+    cmd.dbg = RX_ECHO;
+    cmd.f = 1; // forward
+    cmd.b = 0;
+    cmd.l = 0;
+    cmd.r = 0;
 
     std::cout << "Sending teleoperator command (forward)..." << std::endl;
     sendCommand(cmd);
@@ -508,7 +454,8 @@ void Serial_Com::testCommunication()
 
 void Serial_Com::printSensorData(const SensorPacket &sensor) const
 {
-    if (!sensor.valid) return;
+    if (!sensor.valid)
+        return;
 
     std::cout << std::fixed << std::setprecision(2);
     std::cout << "IMU: Y:" << sensor.yaw << "° R:" << sensor.roll
@@ -527,7 +474,8 @@ void Serial_Com::printSensorData(const SensorPacket &sensor) const
 
 void Serial_Com::printDebugData(const MotionDebugPacket &debug) const
 {
-    if (!debug.valid) return;
+    if (!debug.valid)
+        return;
 
     std::cout << std::fixed << std::setprecision(1);
     std::cout << "Motion: SpdL:" << debug.spdL << " SpdR:" << debug.spdR
@@ -538,32 +486,12 @@ void Serial_Com::printDebugData(const MotionDebugPacket &debug) const
 
 void Serial_Com::printCommandEcho(const CommandEchoPacket &echo) const
 {
-    if (!echo.valid) return;
+    if (!echo.valid)
+        return;
 
     std::cout << std::fixed << std::setprecision(1);
     std::cout << "Echo: d=" << echo.distance << " a=" << echo.angle
               << " vmax=" << echo.maxVel << " wmax=" << echo.maxOmega
               << " vend=" << echo.lastVel << " wend=" << echo.lastOmega
               << " acc=" << echo.linAcc << " aacc=" << echo.angAcc;
-}
-
-std::vector<std::string> Serial_Com::getAvailablePorts()
-{
-    std::vector<std::string> ports;
-    std::vector<std::string> patterns = {"/dev/ttyACM", "/dev/ttyUSB", "/dev/ttyS"};
-
-    for (const auto &pattern : patterns)
-    {
-        for (int i = 0; i < 10; ++i)
-        {
-            std::string p = pattern + std::to_string(i);
-            int test_fd = ::open(p.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-            if (test_fd >= 0)
-            {
-                ports.push_back(p);
-                ::close(test_fd);
-            }
-        }
-    }
-    return ports;
 }

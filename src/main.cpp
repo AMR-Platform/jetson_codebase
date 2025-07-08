@@ -1,3 +1,4 @@
+// main.cpp
 #include "lidar_handler.hpp"
 #include <opencv2/opencv.hpp>
 #include "serial_com.hpp"
@@ -11,6 +12,12 @@
 
 namespace fs = boost::filesystem;
 
+// ───── Globals ───────────────────────────────────────────
+SensorPacket g_sensor;
+MotionDebugPacket g_debug;
+CommandPacket g_cmd;
+// ──────────────────────────────────────────────────────────
+
 /* ---------- LiDAR utility functions ------------------------------------------------ */
 std::string timestamp()
 {
@@ -22,8 +29,8 @@ std::string timestamp()
                   .count() %
               1'000'000;
     std::ostringstream ss;
-    ss << std::put_time(std::localtime(&t), "%Y%m%d_%H%M%S") << '_'
-       << std::setw(6) << std::setfill('0') << us;
+    ss << std::put_time(std::localtime(&t), "%Y%m%d_%H%M%S")
+       << '_' << std::setw(6) << std::setfill('0') << us;
     return ss.str();
 }
 
@@ -35,7 +42,7 @@ void scanToImage(const std::vector<LidarPoint> &scan,
     img = cv::Mat::zeros(canvas, canvas, CV_8UC3);
     const cv::Point c(canvas / 2, canvas / 2);
     const float ppm = (canvas / 2) / rangeMax;
-    for (const auto &p : scan)
+    for (auto &p : scan)
     {
         if (p.distance <= 0.01f || p.distance > rangeMax)
             continue;
@@ -64,7 +71,7 @@ int main()
     if (ports.empty())
     {
         std::cout << "No serial ports found." << std::endl;
-        return false;
+        return 1;
     }
 
     for (const auto &port : ports)
@@ -132,25 +139,25 @@ int main()
             //     saveCSV("scans/" + ts + ".csv", scan);
             // }
 
-            // NEW: Listen to serial and update packets
-            serial->spinOnce();
+            // Read & parse serial
+            serial->spinOnce(g_cmd);
 
-            SensorPacket sensor = serial->getSensor();
-            MotionDebugPacket debug = serial->getDebug();
-            CommandEchoPacket echo = serial->getCommandEcho();
+            // Update globals
+            g_sensor = serial->getSensor();
+            g_debug = serial->getDebug();
+            auto echo = serial->getCommandEcho();
 
-            if (sensor.valid)
-            {
-                serial->printSensorData(sensor);
-                std::cout << std::endl;
-            }
-
-            if (debug.valid)
-            {
-                serial->printDebugData(debug);
-                std::cout << std::endl;
-            }
-
+            // Print or handle
+            // if (g_sensor.valid)
+            // {
+            //     serial->printSensorData(g_sensor);
+            //     std::cout << std::endl;
+            // }
+            // if (g_debug.valid)
+            // {
+            //     serial->printDebugData(g_debug);
+            //     std::cout << std::endl;
+            // }
             if (echo.valid)
             {
                 serial->printCommandEcho(echo);

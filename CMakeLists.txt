@@ -27,15 +27,14 @@ list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/test_ekf.cpp)
 # Original main executable (without EKF integration)
 add_executable(main_exe ${USER_SRC} ${VENDOR_SRC})
 
-# EKF-enabled executable
-add_executable(robot_ekf 
-    src/main_ekf.cpp
-    src/SensorFusion.cpp
-    src/serial_com.cpp
-    src/lidar_handler.cpp
-    src/utils.cpp
-    ${VENDOR_SRC}
-)
+# # EKF-enabled executable
+# add_executable(
+#     src/main_ekf.cpp
+#     src/SensorFusion.cpp
+#     src/serial_com.cpp
+#     src/lidar_handler.cpp
+#     ${VENDOR_SRC}
+# )
 
 # EKF test executable
 add_executable(test_ekf
@@ -51,11 +50,6 @@ target_include_directories(main_exe
         ${OpenCV_INCLUDE_DIRS}
 )
 
-target_include_directories(robot_ekf
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${OpenCV_INCLUDE_DIRS}
-)
 
 target_include_directories(test_ekf
     PUBLIC
@@ -72,13 +66,6 @@ target_link_libraries(main_exe
         pthread
 )
 
-target_link_libraries(robot_ekf
-    PUBLIC
-        Eigen3::Eigen
-        ${OpenCV_LIBS}
-        ${Boost_LIBRARIES}
-        pthread
-)
 
 target_link_libraries(test_ekf
     PUBLIC
