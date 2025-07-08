@@ -8,7 +8,7 @@
 #include <string>
 #include <termios.h>
 #include <vector>
-#include "config.hpp"
+#include "../core/config.hpp"
 
 /* ——— inbound packets ——— */
 struct SensorPacket
