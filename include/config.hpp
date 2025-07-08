@@ -25,6 +25,13 @@ enum DebugMode : uint8_t
     MD_AND_ECHO = 3
 };
 
+enum CommandStatus : uint8_t
+{
+    CMD_TOBE_WRITTEN = 0,
+    CMD_JUST_WROTE = 1,
+    CMD_EMPTY = 2
+};
+
 // System state management
 struct SystemState
 {

@@ -3,6 +3,9 @@
         "dense": "cpp",
         "cholesky": "cpp",
         "mutex": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "ostream": "cpp",
+        "iosfwd": "cpp",
+        "atomic": "cpp"
     }
 }

@@ -57,13 +57,14 @@ struct CommandPacket
 {
     ControlMode mode{AUTONOMOUS};
     DebugMode dbg{DEBUG_OFF};
+    CommandStatus cmdStatus{CMD_EMPTY};
 
     // AUTONOMOUS fields
     float distance{}, angle{};
     uint16_t maxVel{}, maxOmega{}, lastVel{}, lastOmega{};
     float linAcc{}, angAcc{};
 
-    // TELEOPERATOR fields (treated as 0/1)
+    // TELEOPERATOR fields (0/1)
     uint8_t f{}, b{}, l{}, r{};
 };
 
@@ -73,31 +74,30 @@ public:
     explicit Serial_Com(const std::string &port, int baud = DEFAULT_BAUD_RATE);
     ~Serial_Com();
 
-    // Non-blocking, call as often as you wish
-    void spinOnce();
+    // Non-blocking: read, parse, update internal packets
+    void spinOnce(CommandPacket &cmd);
 
-    // Host → MCU
-    void sendCommand(const CommandPacket &cmd);
+    // Send a new command (marks cmdStatus)
+    void sendCommand(CommandPacket &cmd);
 
-    // MCU → host : thread-safe getters
-    SensorPacket      getSensor()       const;
-    MotionDebugPacket getDebug()        const;
-    CommandEchoPacket getCommandEcho()  const;
+    // Thread-safe getters for the latest data
+    SensorPacket getSensor() const;
+    MotionDebugPacket getDebug() const;
+    CommandEchoPacket getCommandEcho() const;
 
-    // System state management
+    // System state (toggles which parsers run)
     void setSystemState(const SystemState &state);
-    SystemState getSystemState()         const;
+    SystemState getSystemState() const;
 
-    // Debug and testing functions
+    // Debug/test
     void testCommunication();
-    void printSensorData(const SensorPacket &sensor)     const;
-    void printDebugData(const MotionDebugPacket &debug)  const;
+    void printSensorData(const SensorPacket &sensor) const;
+    void printDebugData(const MotionDebugPacket &debug) const;
     void printCommandEcho(const CommandEchoPacket &echo) const;
 
-    // Connection status
     bool isConnected() const { return fd >= 0; }
 
-    // Static utility
+    // Find available /dev/tty* ports
     static std::vector<std::string> getAvailablePorts();
 
 private:
@@ -105,26 +105,22 @@ private:
     std::string rxBuf;
     mutable std::mutex mtx;
 
-    // Data packets
-    SensorPacket      sensor{};
+    SensorPacket sensor{};
     MotionDebugPacket debug{};
     CommandEchoPacket cmdEcho{};
-
-    // System state
     SystemState sysState{};
 
-    // Parsing helpers
+    // Parsers
     bool parseCombinedLine(const std::string &line);
     bool parseTelemetryOnly(const std::string &line);
     bool parseDebugOnly(const std::string &line);
     bool parseCommandEcho(const std::string &line);
 
-    // Utility functions
+    // Helpers
     static speed_t baudToTermios(int baud);
     void writeLine(const std::string &line);
     void updateSensorDeltas(SensorPacket &s);
 
-    // Static variables for delta calculations
     static bool deltaInit;
     static float lastYaw;
     static long lastEncL, lastEncR;

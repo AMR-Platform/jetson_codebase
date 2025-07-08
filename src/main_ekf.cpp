@@ -76,7 +76,7 @@ public:
         }
     }
     
-    void spin() {
+    void spin(CommandPacket &cmd) {
         std::cout << "Starting robot localization loop..." << std::endl;
         
         while (true) {
@@ -89,7 +89,7 @@ public:
             if (dt_ < 0.001) dt_ = 0.001;    // Minimum dt
             
             // Process serial data
-            serial_->spinOnce();
+            serial_->spinOnce(cmd);
             
             // Get latest sensor data
             SensorPacket sensor = serial_->getSensor();
@@ -114,7 +114,7 @@ public:
         }
     }
     
-    void sendCommand(const CommandPacket& cmd) {
+    void sendCommand(CommandPacket& cmd) {
         serial_->sendCommand(cmd);
     }
     
@@ -203,36 +203,36 @@ private:
     }
 };
 
-/* ———————————  Example usage  ——————————— */
+// /* ———————————  Example usage  ——————————— */
 
-int main(int argc, char* argv[]) {
-    std::string serialPort = "/dev/ttyUSB0";  // Default port
+// int main(int argc, char* argv[]) {
+//     std::string serialPort = "/dev/ttyUSB0";  // Default port
     
-    // Allow port to be specified as command line argument
-    if (argc > 1) {
-        serialPort = argv[1];
-    }
+//     // Allow port to be specified as command line argument
+//     if (argc > 1) {
+//         serialPort = argv[1];
+//     }
     
-    try {
-        RobotLocalization robot(serialPort, true);  // Enable logging
+//     try {
+//         RobotLocalization robot(serialPort, true);  // Enable logging
         
-        std::cout << "Robot localization system started!" << std::endl;
-        std::cout << "Using EKF with wheel odometry, IMU, and gyroscope fusion" << std::endl;
-        std::cout << "Press Ctrl+C to exit\n" << std::endl;
+//         std::cout << "Robot localization system started!" << std::endl;
+//         std::cout << "Using EKF with wheel odometry, IMU, and gyroscope fusion" << std::endl;
+//         std::cout << "Press Ctrl+C to exit\n" << std::endl;
         
-        // Example: Send a command to enable debug mode
-        CommandPacket cmd;
-        cmd.mode = AUTONOMOUS;
-        cmd.dbg = MOTION_DEBUG;
-        robot.sendCommand(cmd);
+//         // Example: Send a command to enable debug mode
+//         CommandPacket cmd;
+//         cmd.mode = AUTONOMOUS;
+//         cmd.dbg = MOTION_DEBUG;
+//         robot.sendCommand(cmd);
         
-        // Main loop
-        robot.spin();
+//         // Main loop
+//         robot.spin(cmd);
         
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
+//     } catch (const std::exception& e) {
+//         std::cerr << "Error: " << e.what() << std::endl;
+//         return 1;
+//     }
     
-    return 0;
-}
+//     return 0;
+// }
