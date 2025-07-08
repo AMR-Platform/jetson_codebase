@@ -73,14 +73,29 @@ int main()
         {
             std::cout << "Trying to open serial port: " << port << std::endl;
             serial = std::make_unique<Serial_Com>(port, DEFAULT_BAUD_RATE);
+
+            // Set system state for debug + echo
+            SystemState sys;
+            sys.controlMode = AUTONOMOUS;
+            sys.debugMode = MD_AND_ECHO;
+            sys.updateExpectations();
+            serial->setSystemState(sys);
+
             std::cout << "Successfully opened serial port: " << port << std::endl;
-            return true;
+            break;
         }
         catch (const std::exception &e)
         {
             std::cout << "Failed to open " << port << ": " << e.what() << std::endl;
         }
     }
+
+    if (!serial)
+    {
+        std::cerr << "Unable to connect to any serial port." << std::endl;
+        return 1;
+    }
+
     // Initialize LiDAR (commented out for now)
     // fs::create_directories("scans");
     // LidarHandler lidar;
@@ -91,7 +106,6 @@ int main()
 
     // cv::namedWindow("LakiBeam Viewer");
     auto next = std::chrono::steady_clock::now();
-
 
     int loop_count = 0;
     std::cout << "\n=== Starting Main Loop ===" << std::endl;
@@ -117,9 +131,35 @@ int main()
             //     cv::imwrite("scans/" + ts + ".jpg", img);
             //     saveCSV("scans/" + ts + ".csv", scan);
             // }
+
+            // NEW: Listen to serial and update packets
+            serial->spinOnce();
+
+            SensorPacket sensor = serial->getSensor();
+            MotionDebugPacket debug = serial->getDebug();
+            CommandEchoPacket echo = serial->getCommandEcho();
+
+            if (sensor.valid)
+            {
+                serial->printSensorData(sensor);
+                std::cout << std::endl;
+            }
+
+            if (debug.valid)
+            {
+                serial->printDebugData(debug);
+                std::cout << std::endl;
+            }
+
+            if (echo.valid)
+            {
+                serial->printCommandEcho(echo);
+                std::cout << std::endl;
+            }
         }
 
         // Small delay to prevent excessive CPU usage
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     return 0;
