@@ -1,22 +1,33 @@
 // main.cpp
-#include "lidar_handler.hpp"
+#include "lidar/lidar_handler.hpp"
 #include <opencv2/opencv.hpp>
-#include "serial_com.hpp"
+#include "communication/serial_com.hpp"
+#include "localization/RobotLocalization.hpp"  // Add RobotLocalization
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <chrono>
 #include <thread>
-#include "config.hpp"
+#include "core/config.hpp"
 
 namespace fs = boost::filesystem;
 
-// ───── Globals ───────────────────────────────────────────
+// ───── Configuration ─────────────────────────────────────
+bool USE_ROBOT_LOCALIZATION = true;  // Set to true to use EKF-based localization
+// ──────────────────────────────────────────────────────────
+
+// ───── Globals (used by both EKF and Basic modes) ────────────────────────────
 SensorPacket g_sensor;
 MotionDebugPacket g_debug;
 CommandPacket g_cmd;
-// ──────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
+
+/* ---------- Global Access Functions ------------------------------------------- */
+// These functions provide access to current robot state from anywhere in the code
+const SensorPacket& getCurrentSensorData() { return g_sensor; }
+const MotionDebugPacket& getCurrentDebugData() { return g_debug; }
+const CommandPacket& getCurrentCommand() { return g_cmd; }
 
 /* ---------- LiDAR utility functions ------------------------------------------------ */
 std::string timestamp()
@@ -64,6 +75,74 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan)
 /* ---------- Main Function ------------------------------------------------ */
 int main()
 {
+    // Check if we should use RobotLocalization (EKF-based localization)
+    if (USE_ROBOT_LOCALIZATION) {
+        std::cout << "=== STARTING ROBOT LOCALIZATION SYSTEM (EKF-BASED) ===" << std::endl;
+        std::cout << "This mode uses Extended Kalman Filter for sensor fusion" << std::endl;
+        std::cout << "Sensors: Wheel encoders, IMU (yaw), Gyroscope, Accelerometer" << std::endl;
+        std::cout << "=======================================================" << std::endl;
+        
+        auto ports = Serial_Com::getAvailablePorts();
+        if (ports.empty()) {
+            std::cerr << "No serial ports found." << std::endl;
+            return 1;
+        }
+        
+        std::string selectedPort;
+        for (const auto &port : ports) {
+            std::cout << "Trying to connect to: " << port << std::endl;
+            try {
+                // Test connection
+                Serial_Com test(port, DEFAULT_BAUD_RATE);
+                selectedPort = port;
+                std::cout << "Successfully connected to: " << port << std::endl;
+                break;
+            } catch (const std::exception &e) {
+                std::cout << "Failed to connect to " << port << ": " << e.what() << std::endl;
+            }
+        }
+        
+        if (selectedPort.empty()) {
+            std::cerr << "Unable to connect to any serial port." << std::endl;
+            return 1;
+        }
+        
+        try {
+            RobotLocalization robot(selectedPort, true);  // Enable logging
+            
+            std::cout << "\n✓ Robot localization system started!" << std::endl;
+            std::cout << "✓ Using EKF with wheel odometry, IMU, and gyroscope fusion" << std::endl;
+            std::cout << "✓ Data logging enabled - CSV files will be saved" << std::endl;
+            std::cout << "✓ Status updates every 1 second" << std::endl;
+            std::cout << "✓ Global variables (g_sensor, g_debug, g_cmd) will be updated" << std::endl;
+            std::cout << "Press Ctrl+C to exit\n" << std::endl;
+            
+            // Configure robot for EKF testing
+            CommandPacket cmd;
+            cmd.mode = AUTONOMOUS;           // Set to autonomous mode
+            cmd.dbg = MOTION_DEBUG;          // Enable motion debug for detailed output
+            robot.sendCommand(cmd);
+            
+            std::cout << "Command sent: mode=AUTONOMOUS, debug=MOTION_DEBUG" << std::endl;
+            std::cout << "Starting main EKF loop...\n" << std::endl;
+            
+            // Main EKF loop - this will run indefinitely and update globals
+            robot.spin(cmd);
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+        
+        return 0;
+    }
+    
+    // ===== ORIGINAL MAIN FUNCTIONALITY (BASIC SERIAL + LIDAR) =====
+    std::cout << "=== STARTING BASIC SERIAL COMMUNICATION MODE ===" << std::endl;
+    std::cout << "This mode provides basic serial communication and LiDAR support" << std::endl;
+    std::cout << "No EKF or advanced localization features" << std::endl;
+    std::cout << "=================================================" << std::endl;
+    
     std::unique_ptr<Serial_Com> serial;
 
     auto ports = Serial_Com::getAvailablePorts();
