@@ -191,9 +191,9 @@ void SensorFusion::updateWithAccelerometer(double accelX, double accelY) {
     // If total acceleration is close to gravity magnitude, assume robot is stationary
     double accel_magnitude = std::sqrt(accelX*accelX + accelY*accelY);
     
-    // Apply ZUPT if acceleration is small (robot not accelerating much)
-    // For 2D operation, we expect small X,Y accelerations when stationary
-    if (accel_magnitude < 1.0) {  // Less than 1 m/s² indicates near-stationary
+    // Apply ZUPT if acceleration is very small (robot not accelerating much)
+    // For 2D operation, we expect very small X,Y accelerations when stationary
+    if (accel_magnitude < 0.05) {  // Less than 0.05 m/s² indicates near-stationary
         // Measurement: velocities should be zero
         Eigen::Vector2d z_measured = Eigen::Vector2d::Zero();
         Eigen::Vector2d z_predicted;
