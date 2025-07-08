@@ -35,7 +35,17 @@ add_executable(test_ekf
     src/localization/SensorFusion.cpp
 )
 
+# EKF synthetic data test executable
+add_executable(test_ekf_synthetic
+    src/test_ekf_synthetic.cpp
+    src/localization/SensorFusion.cpp
+)
 
+# EKF simple test executable  
+add_executable(test_ekf_simple
+    src/test_ekf_simple.cpp
+    src/localization/SensorFusion.cpp
+)
 
 target_include_directories(main_exe
     PUBLIC
@@ -57,6 +67,24 @@ target_include_directories(test_ekf
         ${PROJECT_SOURCE_DIR}/include/core
 )
 
+target_include_directories(test_ekf_synthetic
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include/localization
+        ${PROJECT_SOURCE_DIR}/include/lidar
+        ${PROJECT_SOURCE_DIR}/include/communication
+        ${PROJECT_SOURCE_DIR}/include/core
+)
+
+target_include_directories(test_ekf_simple
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include/localization
+        ${PROJECT_SOURCE_DIR}/include/lidar
+        ${PROJECT_SOURCE_DIR}/include/communication
+        ${PROJECT_SOURCE_DIR}/include/core
+)
+
 
 
 target_link_libraries(main_exe
@@ -69,6 +97,16 @@ target_link_libraries(main_exe
 
 
 target_link_libraries(test_ekf
+    PUBLIC
+        Eigen3::Eigen
+)
+
+target_link_libraries(test_ekf_synthetic
+    PUBLIC
+        Eigen3::Eigen
+)
+
+target_link_libraries(test_ekf_simple
     PUBLIC
         Eigen3::Eigen
 )

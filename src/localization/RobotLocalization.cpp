@@ -4,21 +4,22 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <cmath>
 
 RobotLocalization::RobotLocalization(const std::string& serialPort, bool enableLogging) 
     : dt_(DEFAULT_DT), enableLogging_(enableLogging) {
     
-    // Initialize EKF with robot parameters
+    // Initialize EKF with robot parameters - TUNED FOR BETTER PERFORMANCE
     ekf_ = std::make_unique<SensorFusion>(
         RobotUtils::WHEEL_RADIUS,     // wheelRadius
         RobotUtils::WHEEL_BASE,       // wheelBase  
         dt_,                          // dt
-        1e-4,                         // processNoisePos
-        1e-5,                         // processNoiseAng
-        1e-3,                         // processNoiseVel
-        1e-4,                         // gyroNoise
-        1e-3,                         // imuNoise
-        1e-2                          // accelNoise
+        1e-2,                         // processNoisePos (increased - less trust in prediction)
+        1e-3,                         // processNoiseAng (increased - less trust in angular prediction)
+        1e-2,                         // processNoiseVel (increased - less trust in velocity prediction)
+        1e-3,                         // gyroNoise (increased - more realistic gyro noise)
+        1e-2,                         // imuNoise (increased - more realistic IMU noise)
+        1e-1                          // accelNoise (increased - less trust in accelerometer)
     );
     
     // Initialize serial communication
@@ -110,28 +111,44 @@ std::array<double, 3> RobotLocalization::getVelocities() const {
 }
 
 void RobotLocalization::updateEKF(const SensorPacket& sensor) {
-    // 1. Prediction step using encoder data
+    // 1. Prediction step using encoder data (always do this)
     auto [leftVel, rightVel] = RobotUtils::getWheelVelocities(sensor, dt_);
     ekf_->predict(leftVel, rightVel);
     
-    // 2. Update with IMU yaw (if available and reasonable)
-    if (sensor.yaw != 0.0f) {
+    // 2. Validate encoder velocities for reasonable bounds
+    double maxReasonableVel = 2.0;  // 2 m/s max reasonable velocity
+    bool encodersReliable = (std::abs(leftVel) < maxReasonableVel && std::abs(rightVel) < maxReasonableVel);
+    
+    // 3. Update with IMU yaw (if available and reasonable)
+    if (sensor.yaw != 0.0f && std::abs(sensor.yaw) < 360.0f) {
         double yawRad = RobotUtils::degToRad(sensor.yaw);
         ekf_->updateWithIMU(yawRad);
     }
     
-    // 3. Update with gyroscope Z (if available)
-    if (sensor.gyroZ != 0.0f) {
-        ekf_->updateWithGyro(sensor.gyroZ);  // gyroZ already in rad/s from BNO055
+    // 4. Update with gyroscope Z (if reasonable)
+    double maxReasonableOmega = 10.0;  // 10 rad/s max reasonable angular velocity
+    if (sensor.gyroZ != 0.0f && std::abs(sensor.gyroZ) < maxReasonableOmega) {
+        ekf_->updateWithGyro(sensor.gyroZ);
     }
     
-    // 4. Update with 2D accelerometer for Zero Velocity Update (if available)
-    if (sensor.accelX != 0.0f || sensor.accelY != 0.0f) {
+    // 5. Zero Velocity Update (ZUPT) using accelerometer
+    double accelMagnitude = std::sqrt(sensor.accelX * sensor.accelX + sensor.accelY * sensor.accelY);
+    double maxAccelThreshold = 0.5; // m/s² - reject above this (likely noise or significant motion)
+    
+    // Only apply ZUPT when accelerations are reasonable and encoders indicate low motion
+    bool lowMotion = (std::abs(leftVel) < 0.05 && std::abs(rightVel) < 0.05);
+    bool reasonableAccel = (accelMagnitude >= 0.0 && accelMagnitude < maxAccelThreshold);
+    
+    if (lowMotion && reasonableAccel) {
+        // The SensorFusion::updateWithAccelerometer method implements ZUPT:
+        // - It detects when accel magnitude < 0.05 m/s² (stationary) 
+        // - Then it forces the velocity states (vx, vy) to zero
+        // - This is proper ZUPT implementation for your sensor range
         ekf_->updateWithAccelerometer(sensor.accelX, sensor.accelY);
     }
     
-    // 5. Update with encoder velocities as measurement
-    if (leftVel != 0.0 || rightVel != 0.0) {
+    // 6. Update with encoder velocities as measurement (only if reasonable)
+    if (encodersReliable && (std::abs(leftVel) > 0.01 || std::abs(rightVel) > 0.01)) {
         ekf_->updateWithEncoders(leftVel, rightVel);
     }
 }
@@ -141,16 +158,26 @@ void RobotLocalization::printStatus(const SensorPacket& sensor) {
     auto velocities = ekf_->getVelocities();
     auto [leftVel, rightVel] = RobotUtils::getWheelVelocities(sensor, dt_);
     
+    // Calculate diagnostic values
+    double accelMagnitude = std::sqrt(sensor.accelX * sensor.accelX + sensor.accelY * sensor.accelY);
+    double avgWheelVel = (leftVel + rightVel) / 2.0;
+    bool encodersReliable = (std::abs(leftVel) < 2.0 && std::abs(rightVel) < 2.0);
+    bool lowMotion = (std::abs(leftVel) < 0.05 && std::abs(rightVel) < 0.05);
+    bool zuptActive = (lowMotion && accelMagnitude >= 0.0 && accelMagnitude < 0.5); // ZUPT conditions met
+    
     std::cout << "\n========== ROBOT STATUS ==========\n";
     std::cout << std::fixed << std::setprecision(3);
     std::cout << "POSE: x=" << pose[0] << "m, y=" << pose[1] << "m, θ=" 
               << RobotUtils::radToDeg(pose[2]) << "°\n";
     std::cout << "VELOCITIES: vx=" << velocities[0] << "m/s, vy=" << velocities[1] 
               << "m/s, ω=" << RobotUtils::radToDeg(velocities[2]) << "°/s\n";
-    std::cout << "ENCODERS: L=" << leftVel << "m/s, R=" << rightVel << "m/s\n";
+    std::cout << "ENCODERS: L=" << leftVel << "m/s, R=" << rightVel << "m/s (avg=" << avgWheelVel << ")\n";
     std::cout << "SENSORS: yaw=" << sensor.yaw << "°, gyroZ=" << sensor.gyroZ << "rad/s\n";
-    std::cout << "ACCEL: X=" << sensor.accelX << "m/s², Y=" << sensor.accelY << "m/s²\n";
-    std::cout << "dt=" << dt_ << "s, Battery: " << sensor.vbat1 << "mV\n";
+    std::cout << "ACCEL: X=" << sensor.accelX << "m/s², Y=" << sensor.accelY << "m/s² (mag=" << accelMagnitude << ")\n";
+    std::cout << "DIAGNOSTICS: dt=" << dt_ << "s, Battery=" << sensor.vbat1 << "mV\n";
+    std::cout << "STATUS: Encoders=" << (encodersReliable ? "OK" : "UNRELIABLE") 
+              << ", Motion=" << (lowMotion ? "LOW" : "HIGH") 
+              << ", ZUPT=" << (zuptActive ? "ACTIVE" : "INACTIVE") << "\n";
     std::cout << "=================================\n" << std::endl;
 }
 
@@ -161,9 +188,11 @@ void RobotLocalization::logData(const SensorPacket& sensor) {
     auto velocities = ekf_->getVelocities();
     auto [leftVel, rightVel] = RobotUtils::getWheelVelocities(sensor, dt_);
     
+    // Use same timestamp format as LiDAR: 32-bit Unix timestamp in milliseconds
     auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+    auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()).count();
+    uint32_t timestamp = static_cast<uint32_t>(timestamp_ms & 0xFFFFFFFF);  // Truncate to 32-bit like LiDAR
     
     logFile_ << timestamp << ","
              << pose[0] << "," << pose[1] << "," << pose[2] << ","
