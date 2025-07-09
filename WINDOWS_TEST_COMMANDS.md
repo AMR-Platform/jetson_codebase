@@ -17,7 +17,7 @@ cmake ..
 cmake --build . --config Release
 
 # Verify build
-Get-ChildItem -Name "*test_ekf*"
+Get-ChildItem -Name "*main_exe*", "*test_ekf*"
 ```
 
 ## Step 2: Run Tests
@@ -32,8 +32,10 @@ Get-ChildItem -Name "*test_ekf*"
 
 ### Real Robot Tests (when on Jetson)
 ```powershell
-# This would be run on the Jetson robot, not Windows
-# .\test_ekf_real_robot
+# Main executable with integrated EKF test harness (run on Jetson robot)
+# ./main_exe
+
+# This will automatically detect the robot and run the complete test sequence
 ```
 
 ## Step 3: Check Results

@@ -531,3 +531,17 @@ void SensorFusion::sensorFusionStep(double leftVel, double rightVel,
     // Ensure final angle wrapping after all updates
     state_ = wrapStateToPi(state_);
 }
+
+Eigen::Vector2d SensorFusion::encoderMeasurementModel(const Eigen::VectorXd& state) const {
+    Eigen::Vector2d h;
+    h(0) = state(3);  // Forward velocity
+    h(1) = state(5);  // Angular velocity
+    return h;
+}
+
+Eigen::MatrixXd SensorFusion::encoderMeasurementJacobian() const {
+    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(2, 6);
+    H(0,3) = 1.0;  // dh1/dvx = 1
+    H(1,5) = 1.0;  // dh2/domega = 1
+    return H;
+}

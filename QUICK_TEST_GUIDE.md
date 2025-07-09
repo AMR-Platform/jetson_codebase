@@ -21,10 +21,10 @@ cmake ..
 make -j4
 
 # Verify build was successful
-ls -la test_ekf_*
+ls -la main_exe test_ekf_*
 ```
 
-Expected output: You should see executables like `test_ekf_real_robot`, `test_ekf_simple`, etc.
+Expected output: You should see executables like `main_exe`, `test_ekf_simple`, etc.
 
 ## Step 2: Check Hardware Connection
 
@@ -53,18 +53,12 @@ sudo chmod 666 /dev/ttyUSB0
 
 ### Test B: Real Robot Test (Main Test)
 ```bash
-# Run with default port (/dev/ttyUSB0)
-./test_ekf_real_robot
-
-# Or specify a different port
-./test_ekf_real_robot /dev/ttyACM0
-
-# Or with full path
-./test_ekf_real_robot /dev/ttyUSB1
+# Run the main executable - it will automatically run the EKF test harness
+./main_exe
 ```
 
 **What this does**:
-- Connects to your robot via serial
+- Automatically detects and connects to your robot via serial
 - Tests 7 phases automatically (initialization, stationary, forward, constant velocity, turning, etc.)
 - Creates detailed `ekf_test_log.csv` 
 - Shows real-time EKF state and sensor readings
