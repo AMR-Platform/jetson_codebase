@@ -65,6 +65,30 @@ void SensorFusion::predict(double leftVelocity, double rightVelocity) {
     P_ = predicted_P;
 }
 
+void SensorFusion::predictWithZUPT(double leftVelocity, double rightVelocity, bool isStationary) {
+    if (!initialized_) {
+        initialized_ = true;
+        return;
+    }
+    
+    // If stationary (ZUPT active), ignore encoder velocities and use current velocities
+    double effectiveLeftVel = isStationary ? 0.0 : leftVelocity;
+    double effectiveRightVel = isStationary ? 0.0 : rightVelocity;
+    
+    // Apply motion model with potentially zeroed encoder inputs
+    Eigen::VectorXd predicted_state = motionModel(state_, effectiveLeftVel, effectiveRightVel);
+    
+    // Get motion Jacobian
+    Eigen::MatrixXd F = getMotionJacobian(state_, effectiveLeftVel, effectiveRightVel);
+    
+    // Predict covariance
+    Eigen::MatrixXd predicted_P = F * P_ * F.transpose() + Q_;
+    
+    // Update state and covariance
+    state_ = wrapStateToPi(predicted_state);
+    P_ = predicted_P;
+}
+
 Eigen::VectorXd SensorFusion::motionModel(const Eigen::VectorXd& state, 
                                          double vLeft, double vRight) const {
     double x = state(0);
@@ -188,11 +212,11 @@ Eigen::MatrixXd SensorFusion::imuMeasurementJacobian() const {
 
 void SensorFusion::updateWithAccelerometer(double accelX, double accelY) {
     // Use accelerometer for Zero Velocity Update (ZUPT) in 2D
-    // If total acceleration is close to gravity magnitude, assume robot is stationary
+    // If total acceleration is very small, assume robot is stationary
     double accel_magnitude = std::sqrt(accelX*accelX + accelY*accelY);
     
     // Apply ZUPT if acceleration is very small (robot not accelerating much)
-    // For 2D operation, we expect very small X,Y accelerations when stationary
+    // Lowered threshold to be more sensitive to stationary conditions
     if (accel_magnitude < 0.05) {  // Less than 0.05 m/s² indicates near-stationary
         // Measurement: velocities should be zero
         Eigen::Vector2d z_measured = Eigen::Vector2d::Zero();
@@ -207,15 +231,24 @@ void SensorFusion::updateWithAccelerometer(double accelX, double accelY) {
         H(0,3) = 1.0;  // dvx/dvx = 1
         H(1,4) = 1.0;  // dvy/dvy = 1
         
+        // Use very low noise for ZUPT - we're confident about zero velocity
+        Eigen::MatrixXd R_zupt = Eigen::MatrixXd::Identity(2, 2) * 1e-4;  // Very confident in ZUPT
+        
         // Innovation covariance
-        Eigen::MatrixXd S = H * P_ * H.transpose() + R_accel_;
+        Eigen::MatrixXd S = H * P_ * H.transpose() + R_zupt;
         
         // Kalman gain
         Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
         
-        // Update
+        // Update - force velocities towards zero
         state_ = state_ + K * innovation;
         P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_;
+        
+        // Additional: Directly constrain velocities for more aggressive ZUPT
+        // This ensures that when ZUPT is active, velocities are truly forced to near-zero
+        state_(3) = state_(3) * 0.1;  // Heavily damp vx
+        state_(4) = state_(4) * 0.1;  // Heavily damp vy 
+        state_(5) = state_(5) * 0.1;  // Heavily damp omega
     }
 }
 
