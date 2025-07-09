@@ -111,35 +111,37 @@ std::array<double, 3> RobotLocalization::getVelocities() const {
 }
 
 void RobotLocalization::updateEKF(const SensorPacket& sensor) {
-    // 1. Prediction step using encoder data (always do this)
+    // 1. Calculate wheel velocities
     auto [leftVel, rightVel] = RobotUtils::getWheelVelocities(sensor, dt_);
-    ekf_->predict(leftVel, rightVel);
     
-    // 2. Validate encoder velocities for reasonable bounds
+    // 2. Determine if ZUPT should be active
+    double accelMagnitude = std::sqrt(sensor.accelX * sensor.accelX + sensor.accelY * sensor.accelY);
+    double maxAccelThreshold = 0.5; // m/s² - reject above this (likely noise or significant motion)
+    bool lowMotion = (std::abs(leftVel) < 0.05 && std::abs(rightVel) < 0.05);
+    bool reasonableAccel = (accelMagnitude >= 0.0 && accelMagnitude < maxAccelThreshold);
+    bool zuptCondition = (lowMotion && reasonableAccel && accelMagnitude < 0.05); // Use consistent 0.05 threshold
+    
+    // 3. Prediction step using ZUPT-aware prediction
+    ekf_->predictWithZUPT(leftVel, rightVel, zuptCondition);
+    
+    // 4. Validate encoder velocities for reasonable bounds
     double maxReasonableVel = 2.0;  // 2 m/s max reasonable velocity
     bool encodersReliable = (std::abs(leftVel) < maxReasonableVel && std::abs(rightVel) < maxReasonableVel);
     
-    // 3. Update with IMU yaw (if available and reasonable)
+    // 5. Update with IMU yaw (if available and reasonable)
     if (sensor.yaw != 0.0f && std::abs(sensor.yaw) < 360.0f) {
         double yawRad = RobotUtils::degToRad(sensor.yaw);
         ekf_->updateWithIMU(yawRad);
     }
     
-    // 4. Update with gyroscope Z (if reasonable)
+    // 6. Update with gyroscope Z (if reasonable)
     double maxReasonableOmega = 10.0;  // 10 rad/s max reasonable angular velocity
     if (sensor.gyroZ != 0.0f && std::abs(sensor.gyroZ) < maxReasonableOmega) {
         ekf_->updateWithGyro(sensor.gyroZ);
     }
     
-    // 5. Zero Velocity Update (ZUPT) using accelerometer
-    double accelMagnitude = std::sqrt(sensor.accelX * sensor.accelX + sensor.accelY * sensor.accelY);
-    double maxAccelThreshold = 0.5; // m/s² - reject above this (likely noise or significant motion)
-    
-    // Only apply ZUPT when accelerations are reasonable and encoders indicate low motion
-    bool lowMotion = (std::abs(leftVel) < 0.05 && std::abs(rightVel) < 0.05);
-    bool reasonableAccel = (accelMagnitude >= 0.0 && accelMagnitude < maxAccelThreshold);
-    
-    if (lowMotion && reasonableAccel) {
+    // 7. Zero Velocity Update (ZUPT) using accelerometer
+    if (zuptCondition) {
         // The SensorFusion::updateWithAccelerometer method implements ZUPT:
         // - It detects when accel magnitude < 0.05 m/s² (stationary) 
         // - Then it forces the velocity states (vx, vy) to zero
@@ -147,8 +149,8 @@ void RobotLocalization::updateEKF(const SensorPacket& sensor) {
         ekf_->updateWithAccelerometer(sensor.accelX, sensor.accelY);
     }
     
-    // 6. Update with encoder velocities as measurement (only if reasonable)
-    if (encodersReliable && (std::abs(leftVel) > 0.01 || std::abs(rightVel) > 0.01)) {
+    // 8. Update with encoder velocities as measurement (only if reasonable and not in ZUPT mode)
+    if (encodersReliable && !zuptCondition && (std::abs(leftVel) > 0.01 || std::abs(rightVel) > 0.01)) {
         ekf_->updateWithEncoders(leftVel, rightVel);
     }
 }
@@ -163,7 +165,7 @@ void RobotLocalization::printStatus(const SensorPacket& sensor) {
     double avgWheelVel = (leftVel + rightVel) / 2.0;
     bool encodersReliable = (std::abs(leftVel) < 2.0 && std::abs(rightVel) < 2.0);
     bool lowMotion = (std::abs(leftVel) < 0.05 && std::abs(rightVel) < 0.05);
-    bool zuptActive = (lowMotion && accelMagnitude >= 0.0 && accelMagnitude < 0.5); // ZUPT conditions met
+    bool zuptActive = (lowMotion && accelMagnitude >= 0.0 && accelMagnitude < 0.05); // Consistent ZUPT threshold
     
     std::cout << "\n========== ROBOT STATUS ==========\n";
     std::cout << std::fixed << std::setprecision(3);

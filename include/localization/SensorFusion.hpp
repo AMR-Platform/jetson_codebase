@@ -20,6 +20,7 @@ public:
     
     // Prediction step using encoder data
     void predict(double leftVelocity, double rightVelocity);
+    void predictWithZUPT(double leftVelocity, double rightVelocity, bool isStationary);
     
     // Update steps with different sensors
     void updateWithGyro(double gyroZ);
