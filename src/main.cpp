@@ -190,7 +190,7 @@ int main()
     // ───── Setup UDP communication ───────────────────────────────────────────────
     constexpr uint16_t LOCAL_UDP_PORT = 9000;
     constexpr uint16_t REMOTE_UDP_PORT = 9001;
-    const std::string REMOTE_IP = "192.168.1."; // adjust as needed
+    const std::string REMOTE_IP = "192.168.1.68"; // adjust as needed
     UDPCom udp(LOCAL_UDP_PORT, REMOTE_IP, REMOTE_UDP_PORT);
     udp.start();
     // ──────────────────────────────────────────────────────────────────────────────
@@ -227,10 +227,13 @@ int main()
             //     saveCSV("scans/" + ts + ".csv", scan);
             // }
 
+
             // Handle remote commands from UDP
             if (g_cmd.cmdStatus == CMD_TOBE_WRITTEN)
             {
                 serial->sendCommand(g_cmd);
+                g_cmd.cmdStatus = CMD_JUST_WROTE; // mark as sent
+                std::cout << "[SRL] Command sent: mode=" << int(g_cmd.mode);
             }
 
             // Read & parse serial
@@ -246,8 +249,6 @@ int main()
                 udp.sendSensor(g_sensor);
             if (g_debug.valid)
                 udp.sendDebug(g_debug);
-            // you could also send command echo if desired:
-            // if (echo.valid) udp.sendCommandEcho(echo);
 
             // Print or handle
             // if (g_sensor.valid)

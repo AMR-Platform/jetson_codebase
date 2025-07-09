@@ -87,7 +87,7 @@ class SerialMonitor(QMainWindow):
         read_udp = QHBoxLayout()
         self.ip_label = QLabel("Read IP:")
         self.ip_input = QComboBox()
-        self.ip_input.addItems(["0.0.0.0", "192.168.1.56", "192.168.1.84"])
+        self.ip_input.addItems(["0.0.0.0", "192.168.1.68"])
         self.port_label = QLabel("Port:")
         self.port_input = QComboBox()
         self.port_input.addItems(["9001", "5005", "9000"])
@@ -99,7 +99,7 @@ class SerialMonitor(QMainWindow):
 
         send_udp = QHBoxLayout()
         self.send_ip_label = QLabel("Send IP:")
-        self.send_ip_input = QLineEdit("192.168.1.")
+        self.send_ip_input = QLineEdit("192.168.1.84")
         self.send_port_label = QLabel("Port:")
         self.send_port_input = QLineEdit("9000")
         send_udp.addWidget(self.send_ip_label)
