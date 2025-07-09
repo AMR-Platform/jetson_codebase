@@ -121,20 +121,8 @@ int main()
             std::cout << "✓ Data logging enabled - CSV files will be saved" << std::endl;
             std::cout << "✓ Status updates every 1 second" << std::endl;
             std::cout << "✓ Global variables (g_sensor, g_debug, g_cmd) will be updated" << std::endl;
-            std::cout << "✓ UDP communication enabled for remote commands" << std::endl;
+            std::cout << "✓ UDP communication will be enabled for remote commands" << std::endl;
             std::cout << "Press Ctrl+C to exit\n" << std::endl;
-
-            // Configure robot for EKF testing
-            CommandPacket cmd;
-            cmd.mode = AUTONOMOUS;           // Set to autonomous mode
-            cmd.dbg = MOTION_DEBUG;          // Enable motion debug for detailed output
-            cmd.distance = 2000;
-            cmd.maxVel = 300;
-            cmd.linAcc = 100;
-            cmd.lastVel = 0;
-            robot->sendCommand(cmd);
-
-            std::cout << "Command sent: mode=AUTONOMOUS, debug=MOTION_DEBUG" << std::endl;
 
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
@@ -187,17 +175,27 @@ int main()
         }
     }
 
-    // Initialize LiDAR (commented out for now)
-    // fs::create_directories("scans");
-    // LidarHandler lidar;
-
     // ───── Setup UDP communication ───────────────────────────────────────────────
     constexpr uint16_t LOCAL_UDP_PORT = 9000;
     constexpr uint16_t REMOTE_UDP_PORT = 9001;
     const std::string REMOTE_IP = "192.168.1.68"; // adjust as needed
     UDPCom udp(LOCAL_UDP_PORT, REMOTE_IP, REMOTE_UDP_PORT);
     udp.start();
+    std::cout << "✓ UDP communication started on port " << LOCAL_UDP_PORT << std::endl;
     // ──────────────────────────────────────────────────────────────────────────────
+
+    // Configure robot for EKF operation (only if using EKF mode)
+    if (USE_ROBOT_LOCALIZATION && robot) {
+        CommandPacket cmd;
+        cmd.mode = AUTONOMOUS;           // Set to autonomous mode
+        cmd.dbg = MOTION_DEBUG;          // Enable motion debug for detailed output
+        cmd.distance = 2000;
+        cmd.maxVel = 300;
+        cmd.linAcc = 100;
+        cmd.lastVel = 0;
+        robot->sendCommand(cmd);
+        std::cout << "✓ Initial command sent: mode=AUTONOMOUS, debug=MOTION_DEBUG" << std::endl;
+    }
 
     constexpr int canvas = 1000;
     constexpr float rangeMax = 15.f;
