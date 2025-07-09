@@ -1,5 +1,6 @@
 #include "SensorFusion.hpp"
 
+#define _USE_MATH_DEFINES  // For M_PI on Windows
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -24,8 +25,14 @@ SensorFusion::SensorFusion(double wheelRadius,
     // Initialize state vector [x, y, theta, vx, vy, omega]
     state_ = Eigen::VectorXd::Zero(6);
     
-    // Initialize covariance matrix
-    P_ = Eigen::MatrixXd::Identity(6, 6) * 0.01;
+    // Initialize covariance matrix with realistic initial uncertainties
+    P_ = Eigen::MatrixXd::Zero(6, 6);
+    P_(0,0) = 0.1;    // x position uncertainty: 10cm
+    P_(1,1) = 0.1;    // y position uncertainty: 10cm  
+    P_(2,2) = 0.1;    // theta uncertainty: ~6 degrees
+    P_(3,3) = 0.01;   // vx velocity uncertainty: 10cm/s
+    P_(4,4) = 0.01;   // vy velocity uncertainty: 10cm/s
+    P_(5,5) = 0.01;   // omega uncertainty: ~0.6 deg/s
     
     // Process noise matrix Q
     Q_ = Eigen::MatrixXd::Zero(6, 6);
@@ -105,9 +112,13 @@ Eigen::VectorXd SensorFusion::motionModel(const Eigen::VectorXd& state,
     // Predict new state
     Eigen::VectorXd new_state(6);
     
-    // Position update (integrate velocity in global frame)
-    new_state(0) = x + (vx * cos(theta) - vy * sin(theta)) * dt_;
-    new_state(1) = y + (vx * sin(theta) + vy * cos(theta)) * dt_;
+    // Position update (integrate velocity in robot frame to global frame)
+    // Transform robot velocities to global frame and integrate
+    double v_global_x = vx * cos(theta) - vy * sin(theta);
+    double v_global_y = vx * sin(theta) + vy * cos(theta);
+    
+    new_state(0) = x + v_global_x * dt_;
+    new_state(1) = y + v_global_y * dt_;
     new_state(2) = theta + omega * dt_;
     
     // Velocity update (based on wheel commands with some smoothing)
@@ -132,7 +143,7 @@ Eigen::MatrixXd SensorFusion::getMotionJacobian(const Eigen::VectorXd& state,
     F(0,3) = cos(theta) * dt_;                            // dx/dvx
     F(0,4) = -sin(theta) * dt_;                           // dx/dvy
     
-    F(1,2) = (vx * cos(theta) - vy * sin(theta)) * dt_;   // dy/dtheta
+    F(1,2) = (vx * cos(theta) - vy * sin(theta)) * dt_;   // dy/dtheta  
     F(1,3) = sin(theta) * dt_;                            // dy/dvx
     F(1,4) = cos(theta) * dt_;                            // dy/dvy
     
@@ -158,12 +169,16 @@ void SensorFusion::updateWithGyro(double gyroZ) {
     // Innovation covariance
     Eigen::MatrixXd S = H * P_ * H.transpose() + R_gyro_;
     
-    // Kalman gain
+    // Kalman gain with regularization to avoid singular matrices
+    if (S.determinant() < 1e-10) {
+        S += Eigen::MatrixXd::Identity(1, 1) * 1e-6;  // Add small regularization
+    }
     Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
     
-    // Update state and covariance
+    // Update state and covariance using Joseph form for numerical stability
+    Eigen::MatrixXd I_KH = Eigen::MatrixXd::Identity(6, 6) - K * H;
     state_ = state_ + K * innovation;
-    P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_;
+    P_ = I_KH * P_ * I_KH.transpose() + K * R_gyro_ * K.transpose();
     
     state_ = wrapStateToPi(state_);
 }
@@ -189,13 +204,17 @@ void SensorFusion::updateWithIMU(double imuYaw) {
     // Innovation covariance
     Eigen::MatrixXd S = H * P_ * H.transpose() + R_imu_;
     
-    // Kalman gain
+    // Kalman gain with regularization to avoid singular matrices
+    if (S.determinant() < 1e-10) {
+        S += Eigen::MatrixXd::Identity(1, 1) * 1e-6;  // Add small regularization
+    }
     Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
     
-    // Update state and covariance
+    // Update state and covariance using Joseph form for numerical stability
+    Eigen::MatrixXd I_KH = Eigen::MatrixXd::Identity(6, 6) - K * H;
     Eigen::VectorXd state_update = K * innovation;
     state_ = state_ + state_update;
-    P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_;
+    P_ = I_KH * P_ * I_KH.transpose() + K * R_imu_ * K.transpose();
     
     state_ = wrapStateToPi(state_);
 }
@@ -237,12 +256,16 @@ void SensorFusion::updateWithAccelerometer(double accelX, double accelY) {
         // Innovation covariance
         Eigen::MatrixXd S = H * P_ * H.transpose() + R_zupt;
         
-        // Kalman gain
+        // Kalman gain with regularization to avoid singular matrices
+        if (S.determinant() < 1e-10) {
+            S += Eigen::MatrixXd::Identity(2, 2) * 1e-6;  // Add small regularization
+        }
         Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
         
-        // Update - force velocities towards zero
+        // Update - force velocities towards zero using Joseph form
+        Eigen::MatrixXd I_KH = Eigen::MatrixXd::Identity(6, 6) - K * H;
         state_ = state_ + K * innovation;
-        P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_;
+        P_ = I_KH * P_ * I_KH.transpose() + K * R_zupt * K.transpose();
         
         // Additional: Directly constrain velocities for more aggressive ZUPT
         // This ensures that when ZUPT is active, velocities are truly forced to near-zero
@@ -267,26 +290,94 @@ void SensorFusion::updateWithEncoders(double leftVel, double rightVel) {
     // Innovation covariance
     Eigen::MatrixXd S = H * P_ * H.transpose() + R_encoder_;
     
-    // Kalman gain
+    // Kalman gain with regularization to avoid singular matrices
+    if (S.determinant() < 1e-10) {
+        S += Eigen::MatrixXd::Identity(2, 2) * 1e-6;  // Add small regularization
+    }
     Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
     
-    // Update
+    // Update using Joseph form for numerical stability
+    Eigen::MatrixXd I_KH = Eigen::MatrixXd::Identity(6, 6) - K * H;
     state_ = state_ + K * innovation;
-    P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_;
+    P_ = I_KH * P_ * I_KH.transpose() + K * R_encoder_ * K.transpose();
+    
+    // Ensure angles are properly wrapped after update
+    state_ = wrapStateToPi(state_);
 }
 
-Eigen::Vector2d SensorFusion::encoderMeasurementModel(const Eigen::VectorXd& state) const {
-    Eigen::Vector2d h;
-    h(0) = state(3);  // Forward velocity
-    h(1) = state(5);  // Angular velocity
-    return h;
+void SensorFusion::updateWithEncodersEnhanced(double leftVel, double rightVel,
+                                              double accelX, double accelY) {
+    // Detect wheel slip/lift conditions before using encoder data
+    if (detectWheelSlipOrLift(leftVel, rightVel, accelX, accelY)) {
+        // Reduce trust in encoder measurements by increasing noise
+        Eigen::MatrixXd R_reduced_trust = R_encoder_ * 10.0;  // 10x higher noise
+        
+        // Still update but with much lower confidence
+        Eigen::Vector2d z_measured;
+        z_measured(0) = (leftVel + rightVel) / 2.0;           // Forward velocity
+        z_measured(1) = (rightVel - leftVel) / wheelBase_;    // Angular velocity
+        
+        Eigen::Vector2d z_predicted = encoderMeasurementModel(state_);
+        Eigen::Vector2d innovation = z_measured - z_predicted;
+        
+        // Measurement Jacobian
+        Eigen::MatrixXd H = encoderMeasurementJacobian();
+        
+        // Innovation covariance with increased noise
+        Eigen::MatrixXd S = H * P_ * H.transpose() + R_reduced_trust;
+        
+        // Regularization to avoid singular matrices
+        if (S.determinant() < 1e-10) {
+            S += Eigen::MatrixXd::Identity(2, 2) * 1e-6;
+        }
+        Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
+        
+        // Update state and covariance using Joseph form for numerical stability
+        Eigen::MatrixXd I_KH = Eigen::MatrixXd::Identity(6, 6) - K * H;
+        state_ = state_ + K * innovation;
+        P_ = I_KH * P_ * I_KH.transpose() + K * R_reduced_trust * K.transpose();
+        
+    } else {
+        // Normal encoder update with full trust
+        updateWithEncoders(leftVel, rightVel);
+    }
+    
+    // Ensure angles are properly wrapped after update
+    state_ = wrapStateToPi(state_);
 }
 
-Eigen::MatrixXd SensorFusion::encoderMeasurementJacobian() const {
-    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(2, 6);
-    H(0,3) = 1.0;  // dh1/dvx = 1
-    H(1,5) = 1.0;  // dh2/domega = 1
-    return H;
+bool SensorFusion::detectWheelSlipOrLift(double leftVel, double rightVel, 
+                                        double accelX, double accelY) const {
+    // Calculate expected acceleration from encoder velocities
+    double v_robot = (leftVel + rightVel) / 2.0;
+    double omega_robot = (rightVel - leftVel) / wheelBase_;
+    
+    // Estimate expected acceleration in robot frame
+    double expected_accel_forward = (v_robot - state_(3)) / dt_;  // Change in forward velocity
+    double expected_accel_lateral = -state_(3) * omega_robot;     // Centripetal acceleration
+    
+    // Transform to global frame for comparison with IMU
+    double cos_theta = std::cos(state_(2));
+    double sin_theta = std::sin(state_(2));
+    double expected_accel_x = expected_accel_forward * cos_theta - expected_accel_lateral * sin_theta;
+    double expected_accel_y = expected_accel_forward * sin_theta + expected_accel_lateral * cos_theta;
+    
+    // Calculate acceleration discrepancy
+    double accel_diff_x = std::abs(accelX - expected_accel_x);
+    double accel_diff_y = std::abs(accelY - expected_accel_y);
+    double total_accel_error = std::sqrt(accel_diff_x*accel_diff_x + accel_diff_y*accel_diff_y);
+    
+    // Thresholds for slip/lift detection
+    double accel_error_threshold = 0.5;      // m/s² - significant discrepancy
+    double velocity_unreasonable_threshold = 3.0;  // m/s - unreasonably high velocities
+    
+    // Detect slip/lift conditions
+    bool high_accel_error = (total_accel_error > accel_error_threshold);
+    bool unreasonable_velocities = (std::abs(leftVel) > velocity_unreasonable_threshold || 
+                                   std::abs(rightVel) > velocity_unreasonable_threshold);
+    bool velocity_mismatch = (std::abs(leftVel - rightVel) > 2.0 * std::abs(state_(5)) * wheelBase_);
+    
+    return (high_accel_error || unreasonable_velocities || velocity_mismatch);
 }
 
 double SensorFusion::wrapToPi(double angle) const {
@@ -326,16 +417,117 @@ void SensorFusion::printState() const {
 }
 
 void SensorFusion::printCovariance() const {
-    std::cout << "COVARIANCE DIAGONAL -> [";
-    for (int i = 0; i < 6; ++i) {
-        std::cout << std::scientific << std::setprecision(2) << P_(i,i);
-        if (i < 5) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
+    std::cout << "\n=== EKF COVARIANCE MATRIX ===\n";
+    std::cout << "Diagonal elements (uncertainties):\n";
+    std::cout << std::fixed << std::setprecision(6);
+    std::cout << "  σ_x²      = " << P_(0,0) << " m²\n";
+    std::cout << "  σ_y²      = " << P_(1,1) << " m²\n";
+    std::cout << "  σ_θ²      = " << P_(2,2) << " rad²\n";
+    std::cout << "  σ_vx²     = " << P_(3,3) << " (m/s)²\n";
+    std::cout << "  σ_vy²     = " << P_(4,4) << " (m/s)²\n";
+    std::cout << "  σ_ω²      = " << P_(5,5) << " (rad/s)²\n";
+    
+    std::cout << "\nStandard deviations:\n";
+    std::cout << "  σ_x       = " << std::sqrt(P_(0,0)) << " m\n";
+    std::cout << "  σ_y       = " << std::sqrt(P_(1,1)) << " m\n";
+    std::cout << "  σ_θ       = " << std::sqrt(P_(2,2)) << " rad (" << std::sqrt(P_(2,2)) * 180.0/M_PI << "°)\n";
+    std::cout << "  σ_vx      = " << std::sqrt(P_(3,3)) << " m/s\n";
+    std::cout << "  σ_vy      = " << std::sqrt(P_(4,4)) << " m/s\n";
+    std::cout << "  σ_ω       = " << std::sqrt(P_(5,5)) << " rad/s\n";
+    std::cout << "=================================\n";
+}
+
+void SensorFusion::printDiagnostics() const {
+    std::cout << "\n╔══════════════════════════════════════════════╗\n";
+    std::cout << "║              EKF DIAGNOSTICS                 ║\n";
+    std::cout << "╠══════════════════════════════════════════════╣\n";
+    
+    // Current state
+    std::cout << "║ STATE VECTOR:                                ║\n";
+    std::cout << std::fixed << std::setprecision(3);
+    std::cout << "║   Position:   (" << std::setw(8) << state_(0) << ", " 
+              << std::setw(8) << state_(1) << ") m           ║\n";
+    std::cout << "║   Heading:    " << std::setw(8) << state_(2) << " rad (" 
+              << std::setw(6) << state_(2)*180.0/M_PI << "°)       ║\n";
+    std::cout << "║   Velocity:   (" << std::setw(8) << state_(3) << ", " 
+              << std::setw(8) << state_(4) << ") m/s         ║\n";
+    std::cout << "║   Ang. Vel:   " << std::setw(8) << state_(5) << " rad/s           ║\n";
+    
+    // Uncertainty analysis
+    std::cout << "║                                              ║\n";
+    std::cout << "║ UNCERTAINTY (1σ):                           ║\n";
+    std::cout << "║   Position:   (" << std::setw(6) << std::sqrt(P_(0,0)) << ", " 
+              << std::setw(6) << std::sqrt(P_(1,1)) << ") m             ║\n";
+    std::cout << "║   Heading:    " << std::setw(6) << std::sqrt(P_(2,2))*180.0/M_PI << "°                     ║\n";
+    std::cout << "║   Velocity:   " << std::setw(6) << std::sqrt(P_(3,3)) << " m/s                  ║\n";
+    
+    // Filter health
+    std::cout << "║                                              ║\n";
+    std::cout << "║ FILTER HEALTH:                              ║\n";
+    std::cout << "║   Initialized: " << (initialized_ ? "YES" : "NO ") << "                        ║\n";
+    
+    // Check for potential issues
+    bool pos_uncertainty_high = (std::sqrt(P_(0,0)) > 1.0 || std::sqrt(P_(1,1)) > 1.0);
+    bool heading_uncertainty_high = (std::sqrt(P_(2,2)) > 0.5);
+    bool velocity_uncertainty_high = (std::sqrt(P_(3,3)) > 0.5);
+    
+    std::cout << "║   Pos. Uncert: " << (pos_uncertainty_high ? "HIGH" : "OK  ") << "                       ║\n";
+    std::cout << "║   Head. Uncert:" << (heading_uncertainty_high ? "HIGH" : "OK  ") << "                       ║\n"; 
+    std::cout << "║   Vel. Uncert: " << (velocity_uncertainty_high ? "HIGH" : "OK  ") << "                       ║\n";
+    
+    // Covariance matrix condition
+    double cond_num = P_.norm() / (P_.inverse().norm());
+    bool ill_conditioned = (cond_num > 1e12);
+    std::cout << "║   Matrix Cond: " << (ill_conditioned ? "POOR" : "OK  ") << "                       ║\n";
+    
+    std::cout << "╚══════════════════════════════════════════════╝\n\n";
 }
 
 void SensorFusion::resetState() {
     state_ = Eigen::VectorXd::Zero(6);
-    P_ = Eigen::MatrixXd::Identity(6, 6) * 0.01;
+    // Reset covariance with same initial uncertainties as constructor
+    P_ = Eigen::MatrixXd::Zero(6, 6);
+    P_(0,0) = 0.1;    // x position uncertainty: 10cm
+    P_(1,1) = 0.1;    // y position uncertainty: 10cm  
+    P_(2,2) = 0.1;    // theta uncertainty: ~6 degrees
+    P_(3,3) = 0.01;   // vx velocity uncertainty: 10cm/s
+    P_(4,4) = 0.01;   // vy velocity uncertainty: 10cm/s
+    P_(5,5) = 0.01;   // omega uncertainty: ~0.6 deg/s
     initialized_ = false;
+}
+
+void SensorFusion::sensorFusionStep(double leftVel, double rightVel, 
+                                   double gyroZ, bool hasGyro,
+                                   double imuYaw, bool hasIMU,
+                                   double accelX, double accelY, bool hasAccel,
+                                   bool hasEncoders) {
+    // Step 1: Prediction step (always first)
+    predict(leftVel, rightVel);
+    
+    // Step 2: Update with measurements in order of reliability/frequency
+    // Order: Gyro (high freq) -> Encoders (high freq) -> IMU (med freq) -> Accelerometer (ZUPT)
+    
+    if (hasGyro) {
+        updateWithGyro(gyroZ);
+    }
+    
+    if (hasEncoders) {
+        // Use enhanced encoder update that detects wheel slip/lift
+        if (hasAccel) {
+            updateWithEncodersEnhanced(leftVel, rightVel, accelX, accelY);
+        } else {
+            updateWithEncoders(leftVel, rightVel);  // Fallback to normal update
+        }
+    }
+    
+    if (hasIMU) {
+        updateWithIMU(imuYaw);
+    }
+    
+    if (hasAccel) {
+        updateWithAccelerometer(accelX, accelY);
+    }
+    
+    // Ensure final angle wrapping after all updates
+    state_ = wrapStateToPi(state_);
 }

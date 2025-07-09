@@ -35,12 +35,17 @@ add_executable(test_ekf
     src/localization/SensorFusion.cpp
 )
 
-
-
 # EKF simple test executable  
 add_executable(test_ekf_simple
     src/test_ekf_simple.cpp
     src/localization/SensorFusion.cpp
+)
+
+# Real robot EKF test executable
+add_executable(test_ekf_real_robot
+    src/localization/test_ekf_real_robot.cpp
+    src/localization/SensorFusion.cpp
+    src/communication/serial_com.cpp
 )
 
 target_include_directories(main_exe
@@ -74,7 +79,13 @@ target_include_directories(test_ekf_simple
         ${PROJECT_SOURCE_DIR}/include/core
 )
 
-
+target_include_directories(test_ekf_real_robot
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include/localization
+        ${PROJECT_SOURCE_DIR}/include/communication
+        ${PROJECT_SOURCE_DIR}/include/core
+)
 
 target_link_libraries(main_exe
     PUBLIC
@@ -95,6 +106,13 @@ target_link_libraries(test_ekf
 target_link_libraries(test_ekf_simple
     PUBLIC
         Eigen3::Eigen
+)
+
+
+target_link_libraries(test_ekf_real_robot
+    PUBLIC
+        Eigen3::Eigen
+        pthread
 )
 
 
