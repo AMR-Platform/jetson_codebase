@@ -41,8 +41,13 @@ void runEKFStep(SensorFusion& ekf, const TestSensorData& data, bool verbose = fa
                   << data.description << "\n";
     }
     
-    // Run EKF prediction
-    ekf.predict(data.leftVel, data.rightVel);
+    // Determine if ZUPT should be active based on acceleration
+    double accel_magnitude = std::sqrt(data.accelX * data.accelX + data.accelY * data.accelY);
+    bool lowMotion = (std::abs(data.leftVel) < 0.05 && std::abs(data.rightVel) < 0.05);
+    bool zuptCondition = (lowMotion && accel_magnitude < 0.05);  // Consistent threshold
+    
+    // Run EKF prediction with ZUPT awareness
+    ekf.predictWithZUPT(data.leftVel, data.rightVel, zuptCondition);
     
     // Run updates based on available data
     if (data.imuYaw != 0.0 && std::abs(data.imuYaw) < 360.0) {
@@ -53,11 +58,13 @@ void runEKFStep(SensorFusion& ekf, const TestSensorData& data, bool verbose = fa
         ekf.updateWithGyro(data.gyroZ);
     }
     
-    // Always try accelerometer update (ZUPT logic is inside)
-    ekf.updateWithAccelerometer(data.accelX, data.accelY);
+    // Apply ZUPT via accelerometer update when conditions are met
+    if (zuptCondition) {
+        ekf.updateWithAccelerometer(data.accelX, data.accelY);
+    }
     
-    // Only use encoders if they show reasonable velocities
-    if (std::abs(data.leftVel) < 2.0 && std::abs(data.rightVel) < 2.0) {
+    // Only use encoders if they show reasonable velocities and ZUPT is not active
+    if (std::abs(data.leftVel) < 2.0 && std::abs(data.rightVel) < 2.0 && !zuptCondition) {
         if (std::abs(data.leftVel) > 0.01 || std::abs(data.rightVel) > 0.01) {
             ekf.updateWithEncoders(data.leftVel, data.rightVel);
         }
