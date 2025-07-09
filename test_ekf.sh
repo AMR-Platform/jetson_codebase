@@ -27,16 +27,15 @@ fi
 
 # Build the test programs
 echo "3. Building test programs..."
-make test_ekf_simple test_ekf_synthetic -j$(nproc)
+make test_ekf_simple -j$(nproc)
 
 if [ $? -ne 0 ]; then
     echo "Error: Build failed!"
     exit 1
 fi
 
-echo "4. Build successful! Test programs created:"
+echo "4. Build successful! Test program created:"
 echo "   - test_ekf_simple: Basic validation tests"
-echo "   - test_ekf_synthetic: Advanced synthetic data tests"
 echo ""
 
 # Run the simple tests
@@ -55,7 +54,6 @@ fi
 echo ""
 echo "=== NEXT STEPS ==="
 echo "1. Review the test results above"
-echo "2. Run './test_ekf_synthetic' for more detailed testing"
-echo "3. Check generated CSV files for data analysis"
-echo "4. If tests pass, your EKF should work correctly with real hardware"
+echo "2. Check generated CSV files for data analysis"
+echo "3. If tests pass, your EKF should work correctly with real hardware"
 echo ""
