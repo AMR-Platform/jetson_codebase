@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include "communication/serial_com.hpp"
 #include "communication/udp_com.hpp"
+#include "localization/RobotLocalization.hpp"
 #include "localization/SensorFusion.hpp"
 #include "localization/robot_utils.hpp"
 #include <iostream>
@@ -24,7 +25,8 @@ SensorPacket g_sensor;
 MotionDebugPacket g_debug;
 CommandPacket g_cmd;
 
-// ───── EKF Globals ───────────────────────────────────────────────────────────
+// ───── EKF/RobotLocalization Globals ─────────────────────────────────────────
+std::unique_ptr<RobotLocalization> g_robot_localization;
 std::unique_ptr<SensorFusion> g_ekf;
 std::ofstream g_ekf_log;
 std::chrono::steady_clock::time_point g_start_time;
@@ -80,7 +82,75 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan)
         ofs << p.azimuth << ',' << p.distance << ',' << unsigned(p.rssi) << '\n';
 }
 
-/* ---------- EKF Functions ---------------------------------------------------- */
+/* ---------- EKF/RobotLocalization Functions --------------------------------- */
+void initializeRobotLocalization(const std::string& serialPort)
+{
+    if (g_ekf_initialized)
+        return;
+
+    try {
+        // Initialize RobotLocalization with logging enabled
+        g_robot_localization = std::make_unique<RobotLocalization>(serialPort, true);
+        
+        std::cout << "✅ RobotLocalization initialized on " << serialPort << std::endl;
+        std::cout << "   EKF with wheel odometry, IMU, and gyroscope fusion" << std::endl;
+        std::cout << "   Logging enabled - CSV files will be saved" << std::endl;
+        std::cout << "   Integrated with UDP communication" << std::endl;
+        
+        g_start_time = std::chrono::steady_clock::now();
+        g_ekf_initialized = true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to initialize RobotLocalization: " << e.what() << std::endl;
+        throw;
+    }
+}
+
+void processRobotLocalizationStep(int loop_count)
+{
+    if (!g_ekf_initialized || !g_robot_localization)
+        return;
+
+    // Configure robot command
+    CommandPacket cmd = g_cmd;  // Use the global command (potentially from UDP)
+    cmd.mode = AUTONOMOUS;      // Ensure autonomous mode
+    cmd.dbg = MOTION_DEBUG;     // Enable motion debug
+    
+    // Process one step of RobotLocalization
+    // This updates the internal EKF and logs data
+    g_robot_localization->processStep(cmd);
+    
+    // Get updated sensor and debug data from RobotLocalization
+    g_sensor = g_robot_localization->getCurrentSensorData();
+    g_debug = g_robot_localization->getCurrentDebugData();
+    
+    // Print EKF state every 100 loops (~1 second at 100Hz)
+    if (loop_count % 100 == 0) {
+        auto now = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(now - g_start_time).count();
+        
+        std::cout << "\n--- RobotLocalization Status (t=" << std::fixed << std::setprecision(1) << elapsed << "s) ---" << std::endl;
+        std::cout << "Loop: " << loop_count << " | Sensor valid: " << (g_sensor.valid ? "YES" : "NO") 
+                  << " | Debug valid: " << (g_debug.valid ? "YES" : "NO") << std::endl;
+        
+        // Print brief EKF state if available
+        if (g_sensor.valid) {
+            std::cout << "Raw data: Enc L/R=(" << g_sensor.dEncL << "," << g_sensor.dEncR 
+                      << ") | IMU yaw=" << std::setprecision(1) << g_sensor.yaw << "°" << std::endl;
+        }
+    }
+}
+
+void cleanupRobotLocalization()
+{
+    if (g_robot_localization) {
+        std::cout << "RobotLocalization cleanup completed." << std::endl;
+        g_robot_localization.reset();
+    }
+    g_ekf_initialized = false;
+}
+
+// Fallback EKF functions (if RobotLocalization fails)
 void initializeEKF()
 {
     if (g_ekf_initialized)
@@ -113,7 +183,7 @@ void initializeEKF()
     g_start_time = std::chrono::steady_clock::now();
     g_ekf_initialized = true;
 
-    std::cout << "✅ EKF initialized - logging to ekf_data_log.csv" << std::endl;
+    std::cout << "✅ Fallback EKF initialized - logging to ekf_data_log.csv" << std::endl;
     std::cout << "   Wheel radius: " << wheelRadius << " m" << std::endl;
     std::cout << "   Wheelbase: " << wheelBase << " m" << std::endl;
     std::cout << "   Update rate: " << 1.0 / dt << " Hz" << std::endl;
@@ -173,7 +243,7 @@ void processEKFData(const SensorPacket &sensor, int loop_count)
     // Print EKF state every 100 loops (~1 second at 100Hz)
     if (loop_count % 100 == 0)
     {
-        std::cout << "\n--- EKF State (t=" << std::fixed << std::setprecision(1) << elapsed << "s) ---" << std::endl;
+        std::cout << "\n--- Fallback EKF State (t=" << std::fixed << std::setprecision(1) << elapsed << "s) ---" << std::endl;
         std::cout << std::fixed << std::setprecision(3);
         std::cout << "Position: (" << pose[0] << ", " << pose[1] << ") m" << std::endl;
         std::cout << "Heading:  " << pose[2] << " rad (" << pose[2] * 180.0 / M_PI << "°)" << std::endl;
@@ -191,7 +261,7 @@ void cleanupEKF()
     if (g_ekf_log.is_open())
     {
         g_ekf_log.close();
-        std::cout << "EKF log file closed." << std::endl;
+        std::cout << "Fallback EKF log file closed." << std::endl;
     }
 }
 
@@ -199,74 +269,8 @@ void cleanupEKF()
 int main()
 {
     std::unique_ptr<Serial_Com> serial;
-
-    // Check if we should use RobotLocalization (EKF-based localization)
-    // if (USE_ROBOT_LOCALIZATION) {
-
-    //     auto ports = Serial_Com::getAvailablePorts();
-    //     if (ports.empty()) {
-    //         std::cerr << "No serial ports found." << std::endl;
-    //         return 1;
-    //     }
-
-    //     std::string selectedPort;
-    //     for (const auto &port : ports) {
-    //         std::cout << "Trying to connect to: " << port << std::endl;
-    //         try {
-    //             // Test connection
-    //             Serial_Com test(port, DEFAULT_BAUD_RATE);
-    //             selectedPort = port;
-    //             std::cout << "Successfully connected to: " << port << std::endl;
-    //             break;
-    //         } catch (const std::exception &e) {
-    //             std::cout << "Failed to connect to " << port << ": " << e.what() << std::endl;
-    //         }
-    //     }
-
-    //     if (selectedPort.empty()) {
-    //         std::cerr << "Unable to connect to any serial port." << std::endl;
-    //         return 1;
-    //     }
-
-    //     try {
-    //         RobotLocalization robot(selectedPort, true);  // Enable logging
-
-    //         std::cout << "\n✓ Robot localization system started!" << std::endl;
-    //         std::cout << "✓ Using EKF with wheel odometry, IMU, and gyroscope fusion" << std::endl;
-    //         std::cout << "✓ Data logging enabled - CSV files will be saved" << std::endl;
-    //         std::cout << "✓ Status updates every 1 second" << std::endl;
-    //         std::cout << "✓ Global variables (g_sensor, g_debug, g_cmd) will be updated" << std::endl;
-    //         std::cout << "Press Ctrl+C to exit\n" << std::endl;
-
-    //         // Configure robot for EKF testing
-    //         CommandPacket cmd;
-    //         cmd.mode = AUTONOMOUS;           // Set to autonomous mode
-    //         cmd.dbg = MOTION_DEBUG;          // Enable motion debug for detailed output
-    //         cmd.distance = 2000;
-    //         cmd.maxVel =300;
-    //         cmd.linAcc = 100;
-    //         cmd.lastVel =0;
-    //         robot.sendCommand(cmd);
-
-    //         std::cout << "Command sent: mode=AUTONOMOUS, debug=MOTION_DEBUG" << std::endl;
-    //         std::cout << "Starting main EKF loop...\n" << std::endl;
-
-    //         // Main EKF loop - this will run indefinitely and update globals
-    //         robot.spin(cmd);
-
-    //     } catch (const std::exception& e) {
-    //         std::cerr << "Error: " << e.what() << std::endl;
-    //         return 1;
-    //     }
-
-    //     return 0;
-    // }
-
-    // // ===== ORIGINAL MAIN FUNCTIONALITY (BASIC SERIAL + LIDAR) =====
-    // std::cout << "=== STARTING BASIC SERIAL COMMUNICATION MODE ===" << std::endl;
-    // std::cout << "This mode provides basic serial communication and LiDAR support" << std::endl;
-    // std::cout << "No EKF or advanced localization features" << std::endl;
-    // std::cout << "=================================================" << std::endl;
+    std::string selectedPort;
+    bool useRobotLocalization = USE_ROBOT_LOCALIZATION;
 
     auto ports = Serial_Com::getAvailablePorts();
 
@@ -276,22 +280,34 @@ int main()
         return 1;
     }
 
+    // Find and connect to a serial port
     for (const auto &port : ports)
     {
         try
         {
             std::cout << "Trying to open serial port: " << port << std::endl;
-            serial = std::make_unique<Serial_Com>(port, DEFAULT_BAUD_RATE);
+            
+            if (useRobotLocalization) {
+                // Test connection for RobotLocalization
+                Serial_Com test(port, DEFAULT_BAUD_RATE);
+                selectedPort = port;
+                std::cout << "Successfully tested port: " << port << " for RobotLocalization" << std::endl;
+                break;
+            } else {
+                // Use direct serial connection
+                serial = std::make_unique<Serial_Com>(port, DEFAULT_BAUD_RATE);
 
-            // Set system state for debug + echo
-            SystemState sys;
-            sys.controlMode = AUTONOMOUS;
-            sys.debugMode = MD_AND_ECHO;
-            sys.updateExpectations();
-            serial->setSystemState(sys);
+                // Set system state for debug + echo
+                SystemState sys;
+                sys.controlMode = AUTONOMOUS;
+                sys.debugMode = MD_AND_ECHO;
+                sys.updateExpectations();
+                serial->setSystemState(sys);
 
-            std::cout << "Successfully opened serial port: " << port << std::endl;
-            break;
+                std::cout << "Successfully opened serial port: " << port << std::endl;
+                selectedPort = port;
+                break;
+            }
         }
         catch (const std::exception &e)
         {
@@ -299,10 +315,34 @@ int main()
         }
     }
 
-    if (!serial)
+    if (selectedPort.empty())
     {
         std::cerr << "Unable to connect to any serial port." << std::endl;
         return 1;
+    }
+
+    // Initialize the localization system
+    if (useRobotLocalization) {
+        try {
+            initializeRobotLocalization(selectedPort);
+            std::cout << "✅ Using RobotLocalization with UDP integration" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "❌ RobotLocalization failed, falling back to direct EKF" << std::endl;
+            useRobotLocalization = false;
+            
+            // Create direct serial connection as fallback
+            serial = std::make_unique<Serial_Com>(selectedPort, DEFAULT_BAUD_RATE);
+            SystemState sys;
+            sys.controlMode = AUTONOMOUS;
+            sys.debugMode = MD_AND_ECHO;
+            sys.updateExpectations();
+            serial->setSystemState(sys);
+            
+            initializeEKF();
+        }
+    } else {
+        initializeEKF();
+        std::cout << "✅ Using direct EKF with UDP integration" << std::endl;
     }
 
     // Initialize LiDAR (commented out for now)
@@ -325,10 +365,7 @@ int main()
     auto next = std::chrono::steady_clock::now();
 
     int loop_count = 0;
-    std::cout << "\n=== Starting Main Loop with EKF ===" << std::endl;
-    
-    // Initialize EKF
-    initializeEKF();
+    std::cout << "\n=== Starting Main Loop with " << (useRobotLocalization ? "RobotLocalization" : "Direct EKF") << " + UDP ===" << std::endl;
 
     while (true)
     {
@@ -355,35 +392,47 @@ int main()
             // Handle remote commands from UDP
             if (g_cmd.cmdStatus == CMD_TOBE_WRITTEN)
             {
-                serial->sendCommand(g_cmd);
+                if (useRobotLocalization && g_robot_localization) {
+                    // Send command through RobotLocalization
+                    g_robot_localization->sendCommand(g_cmd);
+                } else if (serial) {
+                    // Send command through direct serial
+                    serial->sendCommand(g_cmd);
+                }
                 g_cmd.cmdStatus = CMD_JUST_WROTE; // mark as sent
-                std::cout << "[SRL] Command sent: mode=" << int(g_cmd.mode);
+                std::cout << "[UDP] Command sent: mode=" << int(g_cmd.mode) << std::endl;
             }
 
-            // Read & parse serial
-            serial->spinOnce(g_cmd);
-
-            // Update globals
-            g_sensor = serial->getSensor();
-            g_debug = serial->getDebug();
-            auto echo = serial->getCommandEcho();
-
-            // Process EKF data if sensor packet is valid
-            if (g_sensor.valid) {
-                processEKFData(g_sensor, loop_count);
+            // Process robot localization or direct serial
+            if (useRobotLocalization) {
+                // Use RobotLocalization (processes EKF internally)
+                processRobotLocalizationStep(loop_count);
+            } else {
+                // Use direct serial + EKF
+                serial->spinOnce(g_cmd);
+                g_sensor = serial->getSensor();
+                g_debug = serial->getDebug();
+                
+                // Process EKF data if sensor packet is valid
+                if (g_sensor.valid) {
+                    processEKFData(g_sensor, loop_count);
+                }
             }
 
-            // Send telemetry back over UDP
+            // Send telemetry back over UDP (works with both approaches)
             if (g_sensor.valid)
                 udp.sendSensor(g_sensor);
             if (g_debug.valid)
                 udp.sendDebug(g_debug);
 
-            // Print command echo if available
-            if (echo.valid)
-            {
-                serial->printCommandEcho(echo);
-                std::cout << std::endl;
+            // Print command echo if available (direct serial only)
+            if (!useRobotLocalization && serial) {
+                auto echo = serial->getCommandEcho();
+                if (echo.valid)
+                {
+                    serial->printCommandEcho(echo);
+                    std::cout << std::endl;
+                }
             }
         }
 
@@ -392,7 +441,11 @@ int main()
     }
 
     // never reached, but clean up if we ever break out
-    cleanupEKF();
+    if (useRobotLocalization) {
+        cleanupRobotLocalization();
+    } else {
+        cleanupEKF();
+    }
     udp.stop();
     return 0;
 }
