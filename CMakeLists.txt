@@ -23,10 +23,11 @@ file(GLOB_RECURSE USER_SRC
 list(APPEND USER_SRC src/main.cpp)
 
 # Remove test files from main executable
-# (No separate test files anymore - EKF integrated into main)
+list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/localization/test_ekf.cpp)
+list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/localization/test_ekf_real_robot.cpp)
 
 # ---------- Executables ----------
-# Main executable (includes EKF functionality, serial communication, and UDP)
+# Main executable (includes RobotLocalization functionality and LakiBeam files)
 add_executable(main_exe ${USER_SRC})
 
 target_include_directories(main_exe
