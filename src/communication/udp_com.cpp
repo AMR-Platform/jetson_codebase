@@ -1,4 +1,4 @@
-#include "udp_com.hpp"
+#include "communication/udp_com.hpp"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -6,12 +6,10 @@
 #include <sstream>
 #include <cstring>
 
-// Bring in the globals defined in main.cpp:
+// These globals are defined in main.cpp
 extern SensorPacket g_sensor;
 extern MotionDebugPacket g_debug;
 extern CommandPacket g_cmd;
-
-static constexpr size_t MAX_UDP_PAYLOAD = 1200;
 
 UDPCom::UDPCom(uint16_t localPort,
                const std::string &remoteIP,
@@ -19,7 +17,7 @@ UDPCom::UDPCom(uint16_t localPort,
 {
     sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd_ < 0)
-        throw std::runtime_error("UDP socket failed");
+        throw std::runtime_error("UDP socket creation failed");
 
     std::memset(&localAddr_, 0, sizeof(localAddr_));
     localAddr_.sin_family = AF_INET;
@@ -72,30 +70,61 @@ void UDPCom::recvLoop()
 
 void UDPCom::handleIncoming(const std::string &msg)
 {
-    // Format: "CMD,mode,dbg,distance,angle,maxVel,maxOmega,lastVel,lastOmega,linAcc,angAcc"
+    // Parse mode/debug changes and full CommandPacket
     if (msg.rfind("CMD,", 0) == 0)
     {
-        CommandPacket c{};
+        // Format: CMD,<mode>,<dbg>,<distance>,<angle>,<maxVel>,<maxOmega>,
+        //              <lastVel>,<lastOmega>,<linAcc>,<angAcc>
         std::istringstream ss(msg.substr(4));
+        CommandPacket c{};
         char comma;
         int m, d;
-        ss >> m >> comma >> d >> comma >> c.distance >> comma >> c.angle >> comma >> c.maxVel >> comma >> c.maxOmega >> comma >> c.lastVel >> comma >> c.lastOmega >> comma >> c.linAcc >> comma >> c.angAcc;
-        c.mode = static_cast<ControlMode>(m);
-        c.dbg = static_cast<DebugMode>(d);
-        c.cmdStatus = CMD_TOBE_WRITTEN;
-        g_cmd = c; // store into the global command packet
+        if (ss >>
+            m >> comma >> d >> comma >> c.distance >> comma >> c.angle >> comma >> c.maxVel >> comma >> c.maxOmega >> comma >> c.lastVel >> comma >> c.lastOmega >> comma >> c.linAcc >> comma >> c.angAcc)
+        {
+            if (g_cmd.cmdStatus != CMD_TOBE_WRITTEN)
+            {
+                c.mode = static_cast<ControlMode>(m);
+                c.dbg = static_cast<DebugMode>(d);
+                c.cmdStatus = CMD_TOBE_WRITTEN;
+                g_cmd = c; // update global command
+                std::cout << "[UDP] CMD received: mode=" << m << " dbg=" << d << "\n";
+            }
+        }
+        return;
     }
-    // …you can parse more incoming types here…
+    else if (msg.rfind("TELEOP,", 0) == 0)
+    {
+        std::istringstream ss(msg.substr(7));
+        int f, b, l, r;
+        char comma;
+        if (ss >> f >> comma >> b >> comma >> l >> comma >> r)
+        {
+            // fill the global command packet
+            g_cmd.mode = TELEOPERATOR;
+            g_cmd.dbg = RX_ECHO; // or whatever debug mode you prefer
+            g_cmd.f = static_cast<uint8_t>(f);
+            g_cmd.b = static_cast<uint8_t>(b);
+            g_cmd.l = static_cast<uint8_t>(l);
+            g_cmd.r = static_cast<uint8_t>(r);
+            g_cmd.cmdStatus = CMD_TOBE_WRITTEN;
+            std::cout << "[UDP] TELEOP RC: f=" << f
+                      << " b=" << b
+                      << " l=" << l
+                      << " r=" << r << "\n";
+        }
+        return;
+    }
 }
 
-void UDPCom::sendCommand(const CommandPacket &cmd)
+void UDPCom::sendCommandEcho(const CommandPacket &cmdEcho)
 {
     std::ostringstream ss;
-    ss << "CMD," << int(cmd.mode) << "," << int(cmd.dbg) << ","
-       << cmd.distance << "," << cmd.angle << ","
-       << cmd.maxVel << "," << cmd.maxOmega << ","
-       << cmd.lastVel << "," << cmd.lastOmega << ","
-       << cmd.linAcc << "," << cmd.angAcc;
+    ss << "ECHO,"
+       << cmdEcho.distance << "," << cmdEcho.angle << ","
+       << cmdEcho.maxVel << "," << cmdEcho.maxOmega << ","
+       << cmdEcho.lastVel << "," << cmdEcho.lastOmega << ","
+       << cmdEcho.linAcc << "," << cmdEcho.angAcc;
     auto str = ss.str();
     sendto(sockfd_, str.data(), str.size(), 0,
            (sockaddr *)&remoteAddr_, sizeof(remoteAddr_));
@@ -121,8 +150,9 @@ void UDPCom::sendDebug(const MotionDebugPacket &d)
 {
     std::ostringstream ss;
     ss << "DEBUG,"
-       << d.spdL << "," << d.spdR << "," << d.vel << ","
-       << d.omg << "," << d.dist << "," << d.ang << ","
+       << d.spdL << "," << d.spdR << ","
+       << d.vel << "," << d.omg << ","
+       << d.dist << "," << d.ang << ","
        << d.loopDt;
     auto str = ss.str();
     sendto(sockfd_, str.data(), str.size(), 0,
