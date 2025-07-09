@@ -22,11 +22,20 @@ public:
     void predict(double leftVelocity, double rightVelocity);
     void predictWithZUPT(double leftVelocity, double rightVelocity, bool isStationary);
     
+    // Comprehensive sensor fusion step (recommended usage)
+    void sensorFusionStep(double leftVel, double rightVel, 
+                         double gyroZ = 0.0, bool hasGyro = false,
+                         double imuYaw = 0.0, bool hasIMU = false,
+                         double accelX = 0.0, double accelY = 0.0, bool hasAccel = false,
+                         bool hasEncoders = true);
+    
     // Update steps with different sensors
     void updateWithGyro(double gyroZ);
     void updateWithIMU(double imuYaw);
     void updateWithAccelerometer(double accelX, double accelY);  // 2D accelerometer for ZUPT
     void updateWithEncoders(double leftVel, double rightVel);
+    void updateWithEncodersEnhanced(double leftVel, double rightVel,
+                                  double accelX, double accelY);  // With slip detection
     
     // Get current state estimates
     std::array<double, 3> getPose() const;           // [x, y, theta]
@@ -45,6 +54,7 @@ public:
     // Utility functions
     void printState() const;
     void printCovariance() const;
+    void printDiagnostics() const;  // Comprehensive debugging output
     void resetState();
     bool isInitialized() const { return initialized_; }
 
@@ -83,6 +93,10 @@ private:
     
     Eigen::Vector2d encoderMeasurementModel(const Eigen::VectorXd& state) const;
     Eigen::MatrixXd encoderMeasurementJacobian() const;
+    
+    // Wheel slip/lift detection
+    bool detectWheelSlipOrLift(double leftVel, double rightVel, 
+                              double accelX, double accelY) const;
     
     // Utility functions
     double wrapToPi(double angle) const;
