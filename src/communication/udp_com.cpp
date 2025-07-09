@@ -10,6 +10,7 @@
 extern SensorPacket g_sensor;
 extern MotionDebugPacket g_debug;
 extern CommandPacket g_cmd;
+extern std::mutex g_cmd_mtx;
 
 UDPCom::UDPCom(uint16_t localPort,
                const std::string &remoteIP,
@@ -82,6 +83,7 @@ void UDPCom::handleIncoming(const std::string &msg)
         if (ss >>
             m >> comma >> d >> comma >> c.distance >> comma >> c.angle >> comma >> c.maxVel >> comma >> c.maxOmega >> comma >> c.lastVel >> comma >> c.lastOmega >> comma >> c.linAcc >> comma >> c.angAcc)
         {
+            std::lock_guard<std::mutex> lk(g_cmd_mtx);
             if (g_cmd.cmdStatus != CMD_TOBE_WRITTEN)
             {
                 c.mode = static_cast<ControlMode>(m);
@@ -100,6 +102,7 @@ void UDPCom::handleIncoming(const std::string &msg)
         char comma;
         if (ss >> f >> comma >> b >> comma >> l >> comma >> r)
         {
+            std::lock_guard<std::mutex> lk(g_cmd_mtx);
             // fill the global command packet
             g_cmd.mode = TELEOPERATOR;
             g_cmd.dbg = RX_ECHO; // or whatever debug mode you prefer

@@ -2,6 +2,8 @@
 #define CONFIG_HPP
 
 #include <cstdint>
+#include <string>
+#include <chrono>
 
 // Timing configuration
 constexpr int LOOP_TIME = 10; // Main loop time in milliseconds
@@ -9,6 +11,16 @@ constexpr int LOOP_TIME = 10; // Main loop time in milliseconds
 // Serial communication configuration
 constexpr int DEFAULT_BAUD_RATE = 9600;
 constexpr int RX_BUFFER_SIZE = 512;
+
+// UDP communication
+constexpr uint16_t LOCAL_UDP_PORT = 9000;
+constexpr uint16_t REMOTE_UDP_PORT = 9001;
+const std::string REMOTE_IP = "192.168.1.68";
+
+//LIDAR configuration
+constexpr int canvas = 1000;
+constexpr float rangeMax = 15.f;
+constexpr auto period = std::chrono::milliseconds(LOOP_TIME);
 
 // MCU-side enums brought to the host
 enum ControlMode : uint8_t

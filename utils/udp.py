@@ -35,7 +35,7 @@ print("Press W/A/S/D for forward/left/back/right, Q to quit.")
 
 try:
     while True:
-        # Use select to wait for either UDP or keyboard (timeout 0.1s)
+        # Use select to wait for either UDP or keyboard (timseout 0.1s)
         rlist, _, _ = select.select([sock, sys.stdin], [], [], 0.1)
 
         # Handle UDP telemetry
