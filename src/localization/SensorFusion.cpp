@@ -531,3 +531,52 @@ void SensorFusion::sensorFusionStep(double leftVel, double rightVel,
     // Ensure final angle wrapping after all updates
     state_ = wrapStateToPi(state_);
 }
+
+// ============= Missing Encoder Measurement Functions =============
+Eigen::Vector2d SensorFusion::encoderMeasurementModel(const Eigen::VectorXd& state) const {
+    // Extract velocities from state [x, y, theta, vx, vy, omega]
+    double vx = state(3);
+    double vy = state(4);
+    double omega = state(5);
+    double theta = state(2);
+    
+    // Convert from robot velocity to wheel velocities
+    // Forward velocity in robot frame
+    double v_forward = vx * cos(theta) + vy * sin(theta);
+    
+    // Calculate expected wheel velocities
+    double leftVel = v_forward - (wheelBase_ / 2.0) * omega;
+    double rightVel = v_forward + (wheelBase_ / 2.0) * omega;
+    
+    Eigen::Vector2d z_predicted;
+    z_predicted << leftVel, rightVel;
+    return z_predicted;
+}
+
+Eigen::MatrixXd SensorFusion::encoderMeasurementJacobian() const {
+    // Jacobian matrix for encoder measurements
+    // State: [x, y, theta, vx, vy, omega]
+    // Measurement: [leftVel, rightVel]
+    
+    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(2, 6);
+    
+    double theta = state_(2);
+    double cos_theta = cos(theta);
+    double sin_theta = sin(theta);
+    double vx = state_(3);
+    double vy = state_(4);
+    
+    // Partial derivatives for left wheel velocity
+    H(0, 2) = -vx * sin_theta + vy * cos_theta;  // d/dtheta
+    H(0, 3) = cos_theta;                         // d/dvx
+    H(0, 4) = sin_theta;                         // d/dvy
+    H(0, 5) = -wheelBase_ / 2.0;                 // d/domega
+    
+    // Partial derivatives for right wheel velocity  
+    H(1, 2) = -vx * sin_theta + vy * cos_theta;  // d/dtheta
+    H(1, 3) = cos_theta;                         // d/dvx
+    H(1, 4) = sin_theta;                         // d/dvy
+    H(1, 5) = wheelBase_ / 2.0;                  // d/domega
+    
+    return H;
+}

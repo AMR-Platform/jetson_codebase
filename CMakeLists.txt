@@ -24,6 +24,7 @@ list(APPEND USER_SRC src/main.cpp)
 
 # Remove test files from main executable
 list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/localization/test_ekf.cpp)
+list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/localization/test_ekf_real_robot.cpp)
 
 # ---------- Executables ----------
 # Main executable (includes RobotLocalization functionality and LakiBeam files)
@@ -32,12 +33,6 @@ add_executable(main_exe ${USER_SRC})
 # EKF test executable
 add_executable(test_ekf
     src/localization/test_ekf.cpp
-    src/localization/SensorFusion.cpp
-)
-
-# EKF simple test executable  
-add_executable(test_ekf_simple
-    src/test_ekf_simple.cpp
     src/localization/SensorFusion.cpp
 )
 
@@ -68,17 +63,6 @@ target_include_directories(test_ekf
         ${PROJECT_SOURCE_DIR}/include/core
 )
 
-
-
-target_include_directories(test_ekf_simple
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/include/localization
-        ${PROJECT_SOURCE_DIR}/include/lidar
-        ${PROJECT_SOURCE_DIR}/include/communication
-        ${PROJECT_SOURCE_DIR}/include/core
-)
-
 target_include_directories(test_ekf_real_robot
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
@@ -100,14 +84,6 @@ target_link_libraries(test_ekf
     PUBLIC
         Eigen3::Eigen
 )
-
-
-
-target_link_libraries(test_ekf_simple
-    PUBLIC
-        Eigen3::Eigen
-)
-
 
 target_link_libraries(test_ekf_real_robot
     PUBLIC
