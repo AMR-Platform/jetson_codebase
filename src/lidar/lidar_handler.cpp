@@ -26,10 +26,10 @@ LidarHandler::~LidarHandler()
     if (th_.joinable()) th_.join();
 }
 
-void LidarHandler::dumpNextScan(const std::string &filename)
+void LidarHandler::dumpNextScan(const std::string &filename, std::vector<LidarPoint> &scan)
 {
     // 1) grab the latest scan
-    auto scan = getLatestScan();
+    scan = getLatestScan();
     if (scan.empty()) return;
 
     // 2) sort by azimuth

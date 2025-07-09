@@ -28,7 +28,7 @@ public:
 
     /** Non-blocking; returns an empty vector if no new scan is ready. */
     std::vector<LidarPoint> getLatestScan();
-    void dumpNextScan(const std::string &filename = "Range.txt");
+    void dumpNextScan(const std::string &filename, std::vector<LidarPoint> &scan);
 
 private:
     void worker();                      // background thread

@@ -17,10 +17,6 @@
 
 namespace fs = boost::filesystem;
 
-// ───── Configuration ─────────────────────────────────────
-bool USE_ROBOT_LOCALIZATION = true; // Set to true to use EKF-based localization
-// ──────────────────────────────────────────────────────────
-
 // ───── Globals (used by both EKF and Basic modes) ────────────────────────────
 SensorPacket g_sensor;
 MotionDebugPacket g_debug;
@@ -29,6 +25,7 @@ CommandEchoPacket echo; // used for debugging
 std::mutex g_cmd_mtx; // for thread safing the g_cmd access
 CommandPacket g_cmd;
 
+std::vector<LidarPoint> g_scan; // holds the latest LiDAR scan data
 // ──────────────────────────────────────────────────────────────────────────────
 
 /* ---------- Global Access Functions ------------------------------------------- */
@@ -97,7 +94,6 @@ int main()
     udp.start();
     // cv::namedWindow("Lidar Viewer");
 
-
     if (ports.empty())
     {
         std::cout << "No serial ports found." << std::endl;
@@ -148,19 +144,23 @@ int main()
             next += period;
             loop_count++;
 
-            // Process LiDAR data (commented out for now)
-            // auto scan = lidar.getLatestScan();
-            // if (!scan.empty())
-            // {
-            //     cv::Mat img;
-            //     scanToImage(scan, img, rangeMax, canvas);
-            //     cv::imshow("LakiBeam Viewer", img);
-            //     cv::waitKey(1);
-            //     std::string ts = timestamp();
-            //     cv::imwrite("scans/" + ts + ".jpg", img);
-            //     saveCSV("scans/" + ts + ".csv", scan);
-            // }
+            if (loop_count % 10 == 0)
+            {
+                // Process LiDAR data  
+                g_scan = lidar.getLatestScan();
+                lidar.dumpNextScan("scans/Range.txt", g_scan);
 
+                // if (!scan.empty())
+                // {
+                //     cv::Mat img;
+                //     scanToImage(scan, img, rangeMax, canvas);
+                //     cv::imshow("LakiBeam Viewer", img);
+                //     cv::waitKey(1);
+                //     std::string ts = timestamp();
+                //     cv::imwrite("scans/" + ts + ".jpg", img);
+                //     saveCSV("scans/" + ts + ".csv", scan);
+                // }
+            }
 
             // Handle remote commands from UDP
             if (g_cmd.cmdStatus == CMD_TOBE_WRITTEN)
@@ -195,7 +195,7 @@ int main()
             //     serial->printDebugData(g_debug);
             //     std::cout << std::endl;
             // }
-            
+
             if (echo.valid)
             {
                 serial->printCommandEcho(echo);
