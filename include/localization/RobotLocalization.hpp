@@ -40,6 +40,7 @@ public:
     ~RobotLocalization();
     
     void spin(CommandPacket &cmd);
+    void spinOnce(CommandPacket &cmd);  // Single iteration for integration with main loop
     void sendCommand(CommandPacket& cmd);
     std::array<double, 3> getPose() const;
     std::array<double, 3> getVelocities() const;
