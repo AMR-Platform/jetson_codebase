@@ -1,6 +1,8 @@
 #include "lidar_handler.hpp"
 #include <chrono>
 #include <cmath>
+#include <fstream>
+#include <algorithm> 
 
 using namespace std::chrono_literals;
 
@@ -22,6 +24,28 @@ LidarHandler::~LidarHandler()
 {
     running_ = false;
     if (th_.joinable()) th_.join();
+}
+
+void LidarHandler::dumpNextScan(const std::string &filename)
+{
+    // 1) grab the latest scan
+    auto scan = getLatestScan();
+    if (scan.empty()) return;
+
+    // 2) sort by azimuth
+    std::sort(scan.begin(), scan.end(),
+              [](auto &a, auto &b){ return a.azimuth < b.azimuth; });
+
+    // 3) open file in append mode
+    std::ofstream ofs(filename, std::ios::app);
+    if (!ofs.is_open()) return;  // could log an error
+
+    // 4) write distances, space-separated, one line per scan
+    for (size_t i = 0; i < scan.size(); ++i) {
+        ofs << scan[i].distance
+            << (i + 1 < scan.size() ? ' ' : '\n');
+    }
+    // file closed automatically when ofs goes out of scope
 }
 
 void LidarHandler::worker()
