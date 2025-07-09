@@ -61,40 +61,44 @@ void RobotLocalization::spin(CommandPacket &cmd) {
     std::cout << "Starting robot localization loop..." << std::endl;
     
     while (true) {
-        auto currentTime = std::chrono::steady_clock::now();
-        dt_ = std::chrono::duration<double>(currentTime - lastUpdate_).count();
-        lastUpdate_ = currentTime;
-        
-        // Limit dt to reasonable bounds
-        if (dt_ > 0.1) dt_ = DEFAULT_DT;  // Reset if too large
-        if (dt_ < 0.001) dt_ = 0.001;    // Minimum dt
-        
-        // Process serial data
-        serial_->spinOnce(cmd);
-        
-        // Update global variables (same as basic mode)
-        extern SensorPacket g_sensor;
-        extern MotionDebugPacket g_debug;
-        g_sensor = serial_->getSensor();
-        g_debug = serial_->getDebug();
-        
-        // Perform EKF prediction and updates using global sensor data
-        updateEKF(g_sensor);
-        
-        // Print status every 100 iterations (about 1Hz at 100Hz)
-        static int counter = 0;
-        if (++counter >= 100) {
-            printStatus(g_sensor);
-            counter = 0;
-        }
-        
-        // Log data
-        if (enableLogging_) {
-            logData(g_sensor);
-        }
+        spinOnce(cmd);
         
         // Sleep to maintain approximate frequency
         std::this_thread::sleep_for(std::chrono::milliseconds(10));  // ~100Hz to match I2C
+    }
+}
+
+void RobotLocalization::spinOnce(CommandPacket &cmd) {
+    auto currentTime = std::chrono::steady_clock::now();
+    dt_ = std::chrono::duration<double>(currentTime - lastUpdate_).count();
+    lastUpdate_ = currentTime;
+    
+    // Limit dt to reasonable bounds
+    if (dt_ > 0.1) dt_ = DEFAULT_DT;  // Reset if too large
+    if (dt_ < 0.001) dt_ = 0.001;    // Minimum dt
+    
+    // Process serial data
+    serial_->spinOnce(cmd);
+    
+    // Update global variables (same as basic mode)
+    extern SensorPacket g_sensor;
+    extern MotionDebugPacket g_debug;
+    g_sensor = serial_->getSensor();
+    g_debug = serial_->getDebug();
+    
+    // Perform EKF prediction and updates using global sensor data
+    updateEKF(g_sensor);
+    
+    // Print status every 100 iterations (about 1Hz at 100Hz)
+    static int counter = 0;
+    if (++counter >= 100) {
+        printStatus(g_sensor);
+        counter = 0;
+    }
+    
+    // Log data
+    if (enableLogging_) {
+        logData(g_sensor);
     }
 }
 
