@@ -92,7 +92,7 @@ int main()
     fs::create_directories("scans");
 
     std::unique_ptr<Serial_Com> serial;
-    LidarHandler               lidar;
+    //LidarHandler               lidar;
     UDPCom                     udp(LOCAL_UDP_PORT, REMOTE_IP, REMOTE_UDP_PORT);
     RobotLocalization          localize;    // default-construct with logging on
 
@@ -101,7 +101,7 @@ int main()
 
     auto ports = Serial_Com::getAvailablePorts();
     udp.start();
-    cv::namedWindow("Lidar Viewer");
+    //cv::namedWindow("Lidar Viewer");
 
     if (ports.empty()) {
         std::cout << "No serial ports found." << std::endl;
@@ -149,22 +149,22 @@ int main()
             next += period;
             ++loop_count;
 
-            if (loop_count % 10 == 0)
-            {
-                // Process LiDAR data  
-                g_scan = lidar.getLatestScan();
-                lidar.dumpNextScan("scans/Range.txt", g_scan);
+            // if (loop_count % 10 == 0)
+            // {
+            //     // Process LiDAR data  
+            //     g_scan = lidar.getLatestScan();
+            //     lidar.dumpNextScan("scans/Range.txt", g_scan);
 
-                if (!g_scan.empty()) {
-                    cv::Mat img;
-                    scanToImage(g_scan, img, rangeMax, canvas);
-                    cv::imshow("LakiBeam Viewer", img);
-                    cv::waitKey(1);
-                    std::string ts = timestamp();
-                    //cv::imwrite("scans/" + ts + ".jpg", img);
-                    //saveCSV("scans/" + ts + ".csv", g_scan);
-                }
-            }
+            //     if (!g_scan.empty()) {
+            //         cv::Mat img;
+            //         scanToImage(g_scan, img, rangeMax, canvas);
+            //         cv::imshow("LakiBeam Viewer", img);
+            //         cv::waitKey(1);
+            //         std::string ts = timestamp();
+            //         //cv::imwrite("scans/" + ts + ".jpg", img);
+            //         //saveCSV("scans/" + ts + ".csv", g_scan);
+            //     }
+            // }
 
             // Handle remote commands from UDP
             if (g_cmd.cmdStatus == CMD_TOBE_WRITTEN)
