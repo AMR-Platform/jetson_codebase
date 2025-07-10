@@ -40,6 +40,9 @@ SensorFusion g_ekf(
     1e-1     // accelNoise
 );
 // ──────────────────────────────────────────────────────────────────────────────
+OccupancyGrid g_occupancy_grid(50.0f, 50.0f, 0.05f, -25.0f, -25.0f);  // 50x50m map, 5cm resolution
+std::mutex    g_map_mtx;
+int           g_map_update_counter = 0;
 
 /* ---------- Global Access Functions ------------------------------------------- */
 const SensorPacket &getCurrentSensorData()  { return g_sensor; }
@@ -86,13 +89,53 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan) {
         ofs << p.azimuth << ',' << p.distance << ',' << unsigned(p.rssi) << '\n';
 }
 
+
+RobotPose getRobotPoseFromEKF(const SensorFusion& ekf) {
+    // Extract pose from your EKF - you'll need to adapt this to your SensorFusion interface
+    // This is a placeholder - replace with actual EKF state extraction
+    RobotPose pose;
+    
+    // Assuming your EKF has methods to get state
+    // You may need to modify this based on your SensorFusion implementation
+    auto state = ekf.getState();  // You'll need to implement this getter
+    pose.x = state.x;      // position x
+    pose.y = state.y;      // position y  
+    pose.theta = state.theta; // orientation
+    
+    return pose;
+}
+
+void updateOccupancyGrid(const std::vector<LidarPoint>& scan, const RobotPose& robot_pose) {
+    std::lock_guard<std::mutex> lock(g_map_mtx);
+    g_occupancy_grid.updateGrid(scan, robot_pose);
+}
+
+void saveMapPeriodically(int counter) {
+    if (counter % 1000 == 0) {  // Save every 1000 updates (about every 10 seconds at 100Hz)
+        std::lock_guard<std::mutex> lock(g_map_mtx);
+        
+        std::string ts = timestamp();
+        std::string map_file = "maps/occupancy_grid_" + ts + ".map";
+        std::string img_file = "maps/occupancy_grid_" + ts + ".png";
+        
+        g_occupancy_grid.saveToFile(map_file);
+        
+        cv::Mat map_img = g_occupancy_grid.toImage();
+        cv::imwrite(img_file, map_img);
+        
+        std::cout << "Saved map: " << map_file << std::endl;
+    }
+}
+
+
+
 /* ---------- Main Function ------------------------------------------------ */
 int main()
 {
     fs::create_directories("scans");
 
     std::unique_ptr<Serial_Com> serial;
-    //LidarHandler               lidar;
+    LidarHandler               lidar;
     UDPCom                     udp(LOCAL_UDP_PORT, REMOTE_IP, REMOTE_UDP_PORT);
     RobotLocalization          localize;    // default-construct with logging on
 
@@ -102,6 +145,8 @@ int main()
     auto ports = Serial_Com::getAvailablePorts();
     udp.start();
     //cv::namedWindow("Lidar Viewer");
+    cv::namedWindow("Lidar Viewer", cv::WINDOW_AUTOSIZE);
+    cv::namedWindow("Occupancy Grid", cv::WINDOW_AUTOSIZE);
 
     if (ports.empty()) {
         std::cout << "No serial ports found." << std::endl;
@@ -141,6 +186,8 @@ int main()
     // define your loop period explicitly
     constexpr auto period = std::chrono::milliseconds(10);
 
+    std::cout << "Starting mapping loop..." << std::endl;
+
     while (true)
     {
         auto now = std::chrono::steady_clock::now();
@@ -166,6 +213,16 @@ int main()
             //     }
             // }
 
+            g_scan = lidar.getLatestScan();
+            
+            if (loop_count % 5 == 0 && !g_scan.empty()) // Update visualization every 50ms
+            {
+                cv::Mat lidar_img;
+                scanToImage(g_scan, lidar_img, 20.0f, 600);  // 20m range
+                cv::imshow("Lidar Viewer", lidar_img);
+                cv::waitKey(1);
+            }
+            
             // Handle remote commands from UDP
             if (g_cmd.cmdStatus == CMD_TOBE_WRITTEN)
             {
@@ -191,13 +248,78 @@ int main()
             // Run our localization/EKF, then status & logging
             localize.updateEKF(g_sensor);
 
+                        if (g_sensor.valid && !g_scan.empty()) {
+                try {
+                    RobotPose robot_pose = getRobotPoseFromEKF(g_ekf);
+                    updateOccupancyGrid(g_scan, robot_pose);
+                    g_map_update_counter++;
+                    
+                    // Update map visualization every 100ms
+                    if (loop_count % 10 == 0) {
+                        std::lock_guard<std::mutex> lock(g_map_mtx);
+                        cv::Mat map_img = g_occupancy_grid.toImage();
+                        
+                        // Draw robot position on map
+                        int robot_grid_x, robot_grid_y;
+                        if (g_occupancy_grid.worldToGrid(robot_pose.x, robot_pose.y, robot_grid_x, robot_grid_y)) {
+                            cv::circle(map_img, cv::Point(robot_grid_x, robot_grid_y), 3, cv::Scalar(0, 0, 255), -1);
+                            
+                            // Draw robot orientation
+                            float arrow_length = 5.0f;
+                            int end_x = robot_grid_x + static_cast<int>(arrow_length * std::cos(robot_pose.theta));
+                            int end_y = robot_grid_y + static_cast<int>(arrow_length * std::sin(robot_pose.theta));
+                            cv::arrowedLine(map_img, cv::Point(robot_grid_x, robot_grid_y), 
+                                          cv::Point(end_x, end_y), cv::Scalar(0, 0, 255), 2);
+                        }
+                        
+                        cv::imshow("Occupancy Grid", map_img);
+                        cv::waitKey(1);
+                    }
+                    
+                    // Save map periodically
+                    saveMapPeriodically(g_map_update_counter);
+                    
+                } catch (const std::exception& e) {
+                    std::cerr << "Error updating occupancy grid: " << e.what() << std::endl;
+                }
+            }
+
+
             if (echoPkt.valid) {
                 serial->printCommandEcho(echoPkt);
                 std::cout << std::endl;
             }
 
+            if (loop_count % 1000 == 0) {  // Every 10 seconds
+                std::cout << "Mapping stats - Updates: " << g_map_update_counter 
+                         << ", Grid size: " << g_occupancy_grid.getWidth() 
+                         << "x" << g_occupancy_grid.getHeight() << std::endl;
+            }
+
+
             localize.printStatus(g_sensor);
             localize.logData(g_sensor);
+        }
+
+         int key = cv::waitKey(1) & 0xFF;
+        if (key == 27) { // ESC key
+            std::cout << "Exiting..." << std::endl;
+            break;
+        } else if (key == 's') { // Save map manually
+            std::lock_guard<std::mutex> lock(g_map_mtx);
+            std::string ts = timestamp();
+            std::string map_file = "maps/manual_save_" + ts + ".map";
+            std::string img_file = "maps/manual_save_" + ts + ".png";
+            
+            g_occupancy_grid.saveToFile(map_file);
+            cv::Mat map_img = g_occupancy_grid.toImage();
+            cv::imwrite(img_file, map_img);
+            std::cout << "Manually saved map: " << map_file << std::endl;
+        } else if (key == 'c') { // Clear map
+            std::lock_guard<std::mutex> lock(g_map_mtx);
+            g_occupancy_grid.clear();
+            g_map_update_counter = 0;
+            std::cout << "Cleared occupancy grid" << std::endl;
         }
 
         // Small delay to prevent excessive CPU usage
@@ -206,5 +328,13 @@ int main()
 
     // never reached, but clean up if we ever break out
     udp.stop();
+    cv::destroyAllWindows();
+
+    std::lock_guard<std::mutex> lock(g_map_mtx);
+    std::string final_map = "maps/final_map_" + timestamp() + ".map";
+    g_occupancy_grid.saveToFile(final_map);
+    std::cout << "Final map saved: " << final_map << std::endl;
+    
+    
     return 0;
 }
