@@ -14,6 +14,7 @@
 #include <thread>
 #include <cmath>
 #include "core/config.hpp"
+#include "mapping/occupancy_grid.hpp"
 
 namespace fs = boost::filesystem;
 
