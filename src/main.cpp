@@ -189,7 +189,7 @@ int main()
 
     std::cout << "Starting mapping loop..." << std::endl;
 
-    while (true)
+    while (loop_count<3000)
     {
         auto now = std::chrono::steady_clock::now();
         if (now >= next)
