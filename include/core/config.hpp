@@ -20,7 +20,7 @@ const std::string REMOTE_IP = "192.168.1.68";
 //LIDAR configuration
 constexpr int canvas = 1000;
 constexpr float rangeMax = 15.f;
-constexpr auto period = std::chrono::milliseconds(LOOP_TIME);
+constexpr auto dt = std::chrono::milliseconds(LOOP_TIME);
 
 // MCU-side enums brought to the host
 enum ControlMode : uint8_t
