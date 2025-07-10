@@ -44,6 +44,7 @@ add_executable(test_ekf_real_robot
     src/communication/serial_com.cpp
 )
 
+# ---------- Include Directories ----------
 target_include_directories(main_exe
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
@@ -54,7 +55,6 @@ target_include_directories(main_exe
         ${PROJECT_SOURCE_DIR}/include/core
         ${OpenCV_INCLUDE_DIRS}
 )
-
 
 target_include_directories(test_ekf
     PUBLIC
@@ -75,6 +75,7 @@ target_include_directories(test_ekf_real_robot
         ${PROJECT_SOURCE_DIR}/include/core
 )
 
+# ---------- Link Libraries ----------
 target_link_libraries(main_exe
     PUBLIC
         Eigen3::Eigen
@@ -82,7 +83,6 @@ target_link_libraries(main_exe
         ${Boost_LIBRARIES}
         pthread
 )
-
 
 target_link_libraries(test_ekf
     PUBLIC
@@ -97,23 +97,22 @@ target_link_libraries(test_ekf_real_robot
         pthread
 )
 
-add_executable(test_mapping
-    src/mapping/occupancy_grid.cpp
-    src/mapping/test_mapping.cpp                     # You could create this for testing
-)
-
-target_include_directories(test_mapping
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/include/mapping
-        ${OpenCV_INCLUDE_DIRS}
-)
-
-target_link_libraries(test_mapping
-    PUBLIC
-        ${OpenCV_LIBS}
-        pthread
-)
-
-
-
+# ---------- Optional: Mapping Test Executable ----------
+# Uncomment this section if you create src/mapping/test_mapping.cpp
+# add_executable(test_mapping
+#     src/mapping/occupancy_grid.cpp
+#     src/mapping/test_mapping.cpp
+# )
+# 
+# target_include_directories(test_mapping
+#     PUBLIC
+#         ${PROJECT_SOURCE_DIR}/include
+#         ${PROJECT_SOURCE_DIR}/include/mapping
+#         ${OpenCV_INCLUDE_DIRS}
+# )
+# 
+# target_link_libraries(test_mapping
+#     PUBLIC
+#         ${OpenCV_LIBS}
+#         pthread
+# )
