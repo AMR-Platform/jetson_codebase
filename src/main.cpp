@@ -14,6 +14,7 @@
 #include <thread>
 #include <cmath>
 #include "core/config.hpp"
+#include "pose_localiser.hpp"
 
 namespace fs = boost::filesystem;
 
@@ -92,6 +93,14 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan)
     for (auto &p : scan)
         ofs << p.azimuth << ',' << p.distance << ',' << unsigned(p.rssi) << '\n';
 }
+
+
+
+
+//Pose2D absPose = runSpinLocalisation(occ, originW);   //use this to get localized point
+
+
+
 
 /* ---------- Main Function ------------------------------------------------ */
 int main()
