@@ -22,26 +22,9 @@ file(GLOB_RECURSE USER_SRC
 # Add main.cpp separately
 list(APPEND USER_SRC src/main.cpp)
 
-# Remove test files from main executable
-list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/localization/test_ekf.cpp)
-list(REMOVE_ITEM USER_SRC ${PROJECT_SOURCE_DIR}/src/localization/test_ekf_real_robot.cpp)
-
 # ---------- Executables ----------
 # Main executable (includes RobotLocalization functionality and LakiBeam files)
 add_executable(main_exe ${USER_SRC})
-
-# EKF test executable
-add_executable(test_ekf
-    src/localization/test_ekf.cpp
-    src/localization/SensorFusion.cpp
-)
-
-# Real robot EKF test executable
-add_executable(test_ekf_real_robot
-    src/localization/test_ekf_real_robot.cpp
-    src/localization/SensorFusion.cpp
-    src/communication/serial_com.cpp
-)
 
 target_include_directories(main_exe
     PUBLIC
@@ -53,24 +36,6 @@ target_include_directories(main_exe
         ${OpenCV_INCLUDE_DIRS}
 )
 
-
-target_include_directories(test_ekf
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/include/localization
-        ${PROJECT_SOURCE_DIR}/include/lidar
-        ${PROJECT_SOURCE_DIR}/include/communication
-        ${PROJECT_SOURCE_DIR}/include/core
-)
-
-target_include_directories(test_ekf_real_robot
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/include/localization
-        ${PROJECT_SOURCE_DIR}/include/communication
-        ${PROJECT_SOURCE_DIR}/include/core
-)
-
 target_link_libraries(main_exe
     PUBLIC
         Eigen3::Eigen
@@ -78,17 +43,3 @@ target_link_libraries(main_exe
         ${Boost_LIBRARIES}
         pthread
 )
-
-
-target_link_libraries(test_ekf
-    PUBLIC
-        Eigen3::Eigen
-)
-
-target_link_libraries(test_ekf_real_robot
-    PUBLIC
-        Eigen3::Eigen
-        pthread
-)
-
-
