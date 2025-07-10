@@ -1,6 +1,8 @@
 // ─────────────────────────── main.cpp ────────────────────────────
 #include "lidar/lidar_handler.hpp"
 #include <opencv2/opencv.hpp>
+#include <atomic>   //  ← add this
+
 
 #include "communication/serial_com.hpp"
 #include "communication/udp_com.hpp"
