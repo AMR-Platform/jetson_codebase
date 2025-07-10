@@ -96,7 +96,7 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan)
 /* ---------- Main Function ------------------------------------------------ */
 int main()
 {
-    fs::create_directories("scans");
+    fs::create_directories("output");
 
     std::unique_ptr<Serial_Com> serial;
     LidarHandler lidar;
@@ -150,6 +150,7 @@ int main()
 
     auto next = std::chrono::steady_clock::now();
     int loop_count = 0;
+
     // define your loop period explicitly
     constexpr auto period = std::chrono::milliseconds(10);
 
@@ -183,12 +184,30 @@ int main()
             if (g_debug.valid)
                 udp.sendDebug(g_debug);
 
+            if (echoPkt.valid)
+            {
+                serial->printCommandEcho(echoPkt);
+                std::cout << std::endl;
+            }
+
+            localize.updateEKF(g_sensor);
+            localize.printStatus(g_sensor);
+
             if (loop_count % 10 == 0)
             {
+                auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::system_clock::now()
+                                      .time_since_epoch())
+                                  .count();
+                uint32_t now_ts = static_cast<uint32_t>(now_ms & 0xFFFFFFFF);
+
                 // Process LiDAR data
                 g_scan = lidar.getLatestScan();
-                lidar.dumpNextScan("scans/Range.txt", g_scan);
 
+                lidar.dumpNextScan(now_ts, g_scan);
+                localize.logData(now_ts, g_sensor);
+                
+                
                 //     if (!g_scan.empty()) {
                 //         cv::Mat img;
                 //         scanToImage(g_scan, img, rangeMax, canvas);
@@ -198,17 +217,6 @@ int main()
                 //         //cv::imwrite("scans/" + ts + ".jpg", img);
                 //         //saveCSV("scans/" + ts + ".csv", g_scan);
                 //     }
-
-                // Run our localization/EKF, then status & logging
-                localize.updateEKF(g_sensor);
-                if (echoPkt.valid)
-                {
-                    serial->printCommandEcho(echoPkt);
-                    std::cout << std::endl;
-                }
-
-                localize.printStatus(g_sensor);
-                localize.logData(g_sensor);
             }
         }
 

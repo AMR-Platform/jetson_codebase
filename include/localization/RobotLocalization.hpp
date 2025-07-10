@@ -25,7 +25,7 @@ public:
 
     void updateEKF(const SensorPacket& sensor);
     void printStatus(const SensorPacket& sensor);
-    void logData   (const SensorPacket& sensor);
+    void logData   (uint32_t ts, const SensorPacket& sensor);
 
     std::array<double,3> getPose() const;
     std::array<double,3> getVelocities() const;

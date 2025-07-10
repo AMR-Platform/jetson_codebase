@@ -11,7 +11,7 @@ RobotLocalization::RobotLocalization(bool enableLogging)
     lastUpdate_ = std::chrono::steady_clock::now();
     if (enableLogging_) {
         auto ts = getCurrentTimestamp();
-        logFile_.open("robot_pose_" + ts + ".csv");
+        logFile_.open("outputs/robot_pose_" + ts + ".csv");
         logFile_ << "timestamp,x,y,theta,vx,vy,omega,leftVel,rightVel,imuYaw,gyroZ,accelX,accelY\n";
     }
 }
@@ -88,16 +88,13 @@ void RobotLocalization::printStatus(const SensorPacket& sensor) {
     std::cout << "=================================\n" << std::endl;
 }
 
-void RobotLocalization::logData(const SensorPacket& sensor) {
+void RobotLocalization::logData(uint32_t ts, const SensorPacket& sensor) {
     if (!logFile_.is_open()) return;
 
     auto pose        = g_ekf.getPose();
     auto vel         = g_ekf.getVelocities();
     auto [lVel,rVel] = RobotUtils::getWheelVelocities(sensor, dt_);
-    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::system_clock::now()
-                        .time_since_epoch()).count();
-    uint32_t ts = static_cast<uint32_t>(now_ms & 0xFFFFFFFF);
+
 
     logFile_ << ts << ","
              << pose[0] << "," << pose[1] << "," << pose[2] << ","
