@@ -1,10 +1,8 @@
 #include "lidar_handler.hpp"
-#include <fstream>
-#include <algorithm>
 #include <chrono>
-#include <ctime>
-#include <iomanip>
-#include <sstream>
+#include <cmath>
+#include <fstream>
+#include <algorithm> 
 
 using namespace std::chrono_literals;
 
@@ -28,7 +26,6 @@ LidarHandler::~LidarHandler()
     if (th_.joinable()) th_.join();
 }
 
-
 void LidarHandler::dumpNextScan(const std::string &filename, std::vector<LidarPoint> &scan)
 {
     // 1) grab the latest scan
@@ -39,29 +36,16 @@ void LidarHandler::dumpNextScan(const std::string &filename, std::vector<LidarPo
     std::sort(scan.begin(), scan.end(),
               [](auto &a, auto &b){ return a.azimuth < b.azimuth; });
 
-    // 3) build a unique filename: filename_YYYYMMDD_HHMMSS.txt
-    auto now  = std::chrono::system_clock::now();
-    auto tc   = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::localtime(&tc);
-    std::ostringstream oss;
-    oss << filename
-        << '_' << std::put_time(&tm, "%Y%m%d_%H%M%S")
-        << ".txt";
-    const std::string outFilename = oss.str();
+    // 3) open file in append mode
+    std::ofstream ofs(filename, std::ios::app);
+    if (!ofs.is_open()) return;  // could log an error
 
-    // 4) open file (truncate mode by default → new file each call)
-    std::ofstream ofs(outFilename);
-    if (!ofs.is_open()) {
-        // optionally log an error here
-        return;
-    }
-
-    // 5) write distances, space-separated, one line per scan
+    // 4) write distances, space-separated, one line per scan
     for (size_t i = 0; i < scan.size(); ++i) {
         ofs << scan[i].distance
             << (i + 1 < scan.size() ? ' ' : '\n');
     }
-    // 6) ofs closes automatically on scope exit
+    // file closed automatically when ofs goes out of scope
 }
 
 void LidarHandler::worker()
