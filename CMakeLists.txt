@@ -15,6 +15,7 @@ find_package(Boost REQUIRED COMPONENTS system thread filesystem)  # Added filesy
 # Recursively find all source files in subdirectories
 file(GLOB_RECURSE USER_SRC 
     src/localization/*.cpp
+    src/mapping/*.cpp
     src/lidar/*.cpp
     src/communication/*.cpp
 )
@@ -49,6 +50,7 @@ target_include_directories(main_exe
         ${PROJECT_SOURCE_DIR}/include/localization
         ${PROJECT_SOURCE_DIR}/include/lidar
         ${PROJECT_SOURCE_DIR}/include/communication
+        ${PROJECT_SOURCE_DIR}/include/mapping
         ${PROJECT_SOURCE_DIR}/include/core
         ${OpenCV_INCLUDE_DIRS}
 )
@@ -58,6 +60,7 @@ target_include_directories(test_ekf
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/include/localization
+        ${PROJECT_SOURCE_DIR}/include/mapping
         ${PROJECT_SOURCE_DIR}/include/lidar
         ${PROJECT_SOURCE_DIR}/include/communication
         ${PROJECT_SOURCE_DIR}/include/core
@@ -68,6 +71,7 @@ target_include_directories(test_ekf_real_robot
         ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/include/localization
         ${PROJECT_SOURCE_DIR}/include/communication
+        ${PROJECT_SOURCE_DIR}/include/mapping
         ${PROJECT_SOURCE_DIR}/include/core
 )
 
@@ -83,12 +87,33 @@ target_link_libraries(main_exe
 target_link_libraries(test_ekf
     PUBLIC
         Eigen3::Eigen
+        ${OpenCV_LIBS}
 )
 
 target_link_libraries(test_ekf_real_robot
     PUBLIC
         Eigen3::Eigen
+        ${OpenCV_LIBS}
         pthread
 )
+
+add_executable(test_mapping
+    src/mapping/occupancy_grid.cpp
+    src/mapping/test_mapping.cpp                     # You could create this for testing
+)
+
+target_include_directories(test_mapping
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include/mapping
+        ${OpenCV_INCLUDE_DIRS}
+)
+
+target_link_libraries(test_mapping
+    PUBLIC
+        ${OpenCV_LIBS}
+        pthread
+)
+
 
 
