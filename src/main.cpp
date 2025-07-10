@@ -159,7 +159,7 @@ int main()
         if (now >= next)
         {
             next += period;
-            ++loop_count;
+            loop_count++;
 
             // Handle remote commands from UDP
             if (g_cmd.cmdStatus == CMD_TOBE_WRITTEN)
