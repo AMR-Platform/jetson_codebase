@@ -75,7 +75,11 @@ int main()
     std::unique_ptr<Serial_Com> serial;
     UDPCom          udp(LOCAL_UDP_PORT, REMOTE_IP, REMOTE_UDP_PORT);
     RobotLocalization localize;      // wraps g_ekf + logging
-    LidarHandler     lidar("192.168.198.10", 2368, 2369); // <-- adapt
+    LidarHandler lidar("0.0.0.0",   // local IP to bind
+                   "2368",      // local port
+                   "192.168.198.10",  // lidar IP
+                   "2368");     // lidar port
+// <-- adapt
 
     auto ports = Serial_Com::getAvailablePorts();
     if (ports.empty()) { std::cerr << "No serial ports.\n"; return 1; }
@@ -133,16 +137,17 @@ int main()
             g_scan = lidar.getLatestScan();
 
             if (!g_scan.empty()) {
-                RobotPose pose = localize.getPose();     // expose from class
-                g_occGrid.updateGrid(g_scan, pose);
+                auto arr = localize.getPose();          // std::array<double,3>
+                RobotPose pose{ static_cast<float>(arr[0]),
+                                static_cast<float>(arr[1]),
+                                static_cast<float>(arr[2]) };
+
+g_occGrid.updateGrid(g_scan, pose);
+
 
                 if (g_occGrid.serialize(g_occBuf))
-                    udp.sendOccupancy(g_occBuf.data(), g_occBuf.size(),
-                                      g_occGrid.widthCells(),
-                                      g_occGrid.heightCells(),
-                                      g_occGrid.resolution(),
-                                      g_occGrid.originX(),
-                                      g_occGrid.originY());
+                    udp.sendMap(g_occBuf);
+
 
                 /* optional live viewer
                 cv::imshow("OccGrid", g_occGrid.toImage());
