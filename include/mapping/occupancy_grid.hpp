@@ -23,6 +23,12 @@ constexpr float LOG_ODD_MAX      = 10.0f;
 constexpr float LOG_ODD_MIN      = -10.0f;
 /* ─────────────────────────────────────────────────────────────────── */
 
+struct RobotPose {
+    float x{0.f};
+    float y{0.f};
+    float theta{0.f};
+};
+
 class OccupancyGrid
 {
 public:
@@ -75,8 +81,8 @@ private:
                   std::vector<std::pair<int,int>>& cells) const;
 
     /* geometry ----------------------------------------------------- */
-    const float width_m_, height_m_, resolution_;
-    const float origin_x_, origin_y_;
+    float width_m_, height_m_, resolution_;
+    float origin_x_, origin_y_;
     int   width_cells_, height_cells_;
 
     /* storage ------------------------------------------------------ */
