@@ -41,7 +41,7 @@ void LidarHandler::dumpNextScan(uint32_t ts, std::vector<LidarPoint> &scan)
 
     // 3) open file in append mode
     auto ts_str = std::to_string(ts);
-    std::string filename = "outputs/lidar_" + ts_str + ".csv";
+    std::string filename = "outputs/lidar.txt";
     std::ofstream ofs(filename, std::ios::app);
     if (!ofs.is_open())
         return; // could log an error

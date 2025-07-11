@@ -96,7 +96,7 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan)
 /* ---------- Main Function ------------------------------------------------ */
 int main()
 {
-    fs::create_directories("output");
+    fs::create_directories("outputs");
 
     std::unique_ptr<Serial_Com> serial;
     LidarHandler lidar;
