@@ -278,8 +278,8 @@ void SensorFusion::updateWithAccelerometer(double accelX, double accelY) {
 void SensorFusion::updateWithEncoders(double leftVel, double rightVel) {
     // Measurement model: velocities derived from encoders
     Eigen::Vector2d z_measured;
-    z_measured(0) = (leftVel + rightVel) / 2.0;           // Forward velocity
-    z_measured(1) = (rightVel - leftVel) / wheelBase_;    // Angular velocity
+    z_measured(0) = leftVel;   // Left wheel velocity
+    z_measured(1) = rightVel;  // Right wheel velocity
     
     Eigen::Vector2d z_predicted = encoderMeasurementModel(state_);
     Eigen::Vector2d innovation = z_measured - z_predicted;
