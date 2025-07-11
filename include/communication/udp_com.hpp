@@ -3,15 +3,19 @@
 #define UDP_COM_HPP
 
 #include "config.hpp"
-#include "communication/serial_com.hpp"  // for CommandPacket, SensorPacket, MotionDebugPacket
+#include "communication/serial_com.hpp" // for CommandPacket, SensorPacket, MotionDebugPacket
 #include <cstdint>
 #include <string>
 #include <thread>
 #include <atomic>
 #include <vector>
-#include <netinet/in.h>                  // sockaddr_in
+#include <netinet/in.h> // sockaddr_in
 
-class UDPCom {
+// Forward declaration for LidarPoint
+struct LidarPoint;
+
+class UDPCom
+{
 public:
     UDPCom(uint16_t localPort,
            const std::string &remoteIP,
@@ -24,20 +28,26 @@ public:
 
     // Outgoing telemetry
     void sendCommandEcho(const CommandPacket &cmdEcho);
-    void sendSensor       (const SensorPacket &s);
-    void sendDebug        (const MotionDebugPacket &d);
+    void sendSensor(const SensorPacket &s);
+    void sendDebug(const MotionDebugPacket &d);
 
     // Bulk data
-    void sendMap          (const std::vector<uint8_t> &mapData);
-    void sendPointCloud   (const std::vector<uint8_t> &pcData);
+    void sendMap(const std::vector<uint8_t> &mapData);
+    void sendPointCloud(const std::vector<uint8_t> &pcData);
+    
+    // LiDAR data transmission
+    void sendLidarScan(const std::vector<LidarPoint> &scan);
+    
+    // Velocity profile data (for the Python interface velocity plotting)
+    void sendVelocityProfile(const MotionDebugPacket &debug, const CommandPacket &cmd);
 
 private:
     void recvLoop();
     void handleIncoming(const std::string &msg);
 
-    int           sockfd_;
-    sockaddr_in   localAddr_, remoteAddr_;
-    std::thread   recvThread_;
+    int sockfd_;
+    sockaddr_in localAddr_, remoteAddr_;
+    std::thread recvThread_;
     std::atomic<bool> running_{false};
     static constexpr size_t MAX_UDP_PAYLOAD = 1200;
 };

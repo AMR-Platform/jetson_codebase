@@ -1,10 +1,15 @@
+// udp_com.cpp
 #include "communication/udp_com.hpp"
+#include "lidar/lidar_handler.hpp"  // Include this for LidarPoint definition
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <chrono>
+#include <thread>
+#include <algorithm>
 
 // These globals are defined in main.cpp
 extern SensorPacket g_sensor;
@@ -63,6 +68,7 @@ void UDPCom::recvLoop()
                          (sockaddr *)&src, &srclen);
         if (n > 0)
         {
+            buf[n] = '\0'; // Null terminate
             std::string msg(buf, n);
             handleIncoming(msg);
         }
@@ -80,8 +86,11 @@ void UDPCom::handleIncoming(const std::string &msg)
         CommandPacket c{};
         char comma;
         int m, d;
-        if (ss >>
-            m >> comma >> d >> comma >> c.distance >> comma >> c.angle >> comma >> c.maxVel >> comma >> c.maxOmega >> comma >> c.lastVel >> comma >> c.lastOmega >> comma >> c.linAcc >> comma >> c.angAcc)
+        if (ss >> m >> comma >> d >> comma >> 
+               c.distance >> comma >> c.angle >> comma >> 
+               c.maxVel >> comma >> c.maxOmega >> comma >> 
+               c.lastVel >> comma >> c.lastOmega >> comma >> 
+               c.linAcc >> comma >> c.angAcc)
         {
             std::lock_guard<std::mutex> lk(g_cmd_mtx);
             if (g_cmd.cmdStatus != CMD_TOBE_WRITTEN)
@@ -157,6 +166,59 @@ void UDPCom::sendDebug(const MotionDebugPacket &d)
        << d.vel << "," << d.omg << ","
        << d.dist << "," << d.ang << ","
        << d.loopDt;
+    auto str = ss.str();
+    sendto(sockfd_, str.data(), str.size(), 0,
+           (sockaddr *)&remoteAddr_, sizeof(remoteAddr_));
+}
+
+void UDPCom::sendLidarScan(const std::vector<LidarPoint> &scan)
+{
+    if (scan.empty()) return;
+    
+    // Send LiDAR data in chunks due to UDP size limits
+    const size_t MAX_POINTS_PER_PACKET = 100; // Adjust based on your needs
+    size_t totalPoints = scan.size();
+    size_t chunkID = 0;
+    size_t totalChunks = (totalPoints + MAX_POINTS_PER_PACKET - 1) / MAX_POINTS_PER_PACKET;
+    
+    for (size_t offset = 0; offset < totalPoints; offset += MAX_POINTS_PER_PACKET)
+    {
+        size_t pointsInThisChunk = std::min(MAX_POINTS_PER_PACKET, totalPoints - offset);
+        
+        std::ostringstream ss;
+        ss << "LIDAR," << chunkID << "," << totalChunks << "," << pointsInThisChunk;
+        
+        // Add each point: azimuth,distance,rssi
+        for (size_t i = 0; i < pointsInThisChunk; ++i)
+        {
+            const auto &point = scan[offset + i];
+            ss << "," << point.azimuth << "," << point.distance << "," << static_cast<int>(point.rssi);
+        }
+        
+        auto str = ss.str();
+        sendto(sockfd_, str.data(), str.size(), 0,
+               (sockaddr *)&remoteAddr_, sizeof(remoteAddr_));
+        
+        ++chunkID;
+        
+        // Small delay between chunks to avoid overwhelming the receiver
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+void UDPCom::sendVelocityProfile(const MotionDebugPacket &debug, const CommandPacket &cmd)
+{
+    // Send a combined packet with both actual and expected velocity data
+    // This matches what the Python interface expects for velocity profile plotting
+    std::ostringstream ss;
+    ss << "VELOCITY_PROFILE,"
+       << debug.vel << "," << debug.omg << ","           // actual velocity, omega
+       << cmd.maxVel << "," << cmd.maxOmega << ","       // expected/command velocity, omega
+       << debug.spdL << "," << debug.spdR << ","         // individual wheel speeds
+       << cmd.distance << "," << cmd.angle << ","        // target distance, angle
+       << debug.dist << "," << debug.ang << ","          // current distance, angle
+       << debug.loopDt;                                  // loop timing
+    
     auto str = ss.str();
     sendto(sockfd_, str.data(), str.size(), 0,
            (sockaddr *)&remoteAddr_, sizeof(remoteAddr_));

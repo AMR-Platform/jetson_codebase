@@ -7,9 +7,9 @@ import tty
 import atexit
 
 # UDP listen & send configuration
-LOCAL_IP        = "192.168.1.68"       # listen on all interfaces
+LOCAL_IP        = "192.168.8.157"       # listen on all interfaces
 LOCAL_PORT      = 9001            # where we receive robot telemetry
-ROBOT_IP        = "192.168.1.84"  # robot's UDP listener
+ROBOT_IP        = "192.168.8.143"  # robot's UDP listener
 ROBOT_PORT      = 9000            # robot listens for TELEOP
 
 # Set up sockets

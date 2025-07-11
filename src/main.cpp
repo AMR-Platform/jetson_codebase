@@ -96,7 +96,7 @@ void saveCSV(const std::string &fname, const std::vector<LidarPoint> &scan)
 /* ---------- Main Function ------------------------------------------------ */
 int main()
 {
-    fs::create_directories("output");
+    fs::create_directories("outputs");
 
     std::unique_ptr<Serial_Com> serial;
     LidarHandler lidar;
@@ -176,18 +176,26 @@ int main()
             // Update globals
             g_sensor = serial->getSensor();
             g_debug = serial->getDebug();
-            auto echoPkt = serial->getCommandEcho();
+            auto echo = serial->getCommandEcho();
 
+            // Send telemetry back over UDP
             // Send telemetry back over UDP
             if (g_sensor.valid)
                 udp.sendSensor(g_sensor);
+
             if (g_debug.valid)
                 udp.sendDebug(g_debug);
 
-            if (echoPkt.valid)
+            // NEW: Send velocity profile data for Python interface plotting
+            if (g_debug.valid)
             {
-                serial->printCommandEcho(echoPkt);
-                std::cout << std::endl;
+                // Get current command for expected values
+                CommandPacket currentCmd;
+                {
+                    std::lock_guard<std::mutex> lk(g_cmd_mtx);
+                    currentCmd = g_cmd;
+                }
+                udp.sendVelocityProfile(g_debug, currentCmd);
             }
 
             localize.updateEKF(g_sensor);
@@ -206,25 +214,27 @@ int main()
 
                 lidar.dumpNextScan(now_ts, g_scan);
                 localize.logData(now_ts, g_sensor);
-                
-                
-                //     if (!g_scan.empty()) {
-                //         cv::Mat img;
-                //         scanToImage(g_scan, img, rangeMax, canvas);
-                //         cv::imshow("LakiBeam Viewer", img);
-                //         cv::waitKey(1);
-                //         std::string ts = timestamp();
-                //         //cv::imwrite("scans/" + ts + ".jpg", img);
-                //         //saveCSV("scans/" + ts + ".csv", g_scan);
-                //     }
+
+                // NEW: Send LiDAR data every few cycles to avoid overwhelming the network
+                static int lidar_send_counter = 0;
+                if (!g_scan.empty()) // Send LiDAR data when available
+                {
+                    udp.sendLidarScan(g_scan);
+                    lidar_send_counter++;
+
+                    // Optional: Print LiDAR stats occasionally
+                    if (lidar_send_counter % 20 == 0) // Every ~2 seconds
+                    {
+                        std::cout << "[LIDAR] Sent scan with " << g_scan.size() << " points" << std::endl;
+                    }
+                }
             }
+            // Small delay to prevent excessive CPU usage
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
-        // Small delay to prevent excessive CPU usage
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // never reached, but clean up if we ever break out
+        udp.stop();
+        return 0;
     }
-
-    // never reached, but clean up if we ever break out
-    udp.stop();
-    return 0;
 }

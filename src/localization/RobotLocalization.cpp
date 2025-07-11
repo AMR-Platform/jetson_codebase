@@ -1,17 +1,25 @@
 #include "RobotLocalization.hpp"
-#include <cmath>
+
+#include <boost/filesystem.hpp>   // or <filesystem>
+#include <iostream>               // for std::cout
+#include <iomanip>                // for std::fixed, std::setprecision, std::put_time
+#include <sstream>                // for std::ostringstream
+#include <ctime>                  // for std::localtime
+
+namespace fs = boost::filesystem;
 
 // use your global EKF instance
 extern SensorFusion g_ekf;
 
 RobotLocalization::RobotLocalization(bool enableLogging)
-  : dt_(DEFAULT_DT),                // <-- use the class’s own DEFAULT_DT
+  : dt_(DEFAULT_DT),
     enableLogging_(enableLogging)
 {
+    fs::create_directories("outputs");
     lastUpdate_ = std::chrono::steady_clock::now();
+
     if (enableLogging_) {
-        auto ts = getCurrentTimestamp();
-        logFile_.open("outputs/robot_pose_" + ts + ".csv");
+        logFile_.open("outputs/localization.csv", std::ios::trunc);
         logFile_ << "timestamp,x,y,theta,vx,vy,omega,leftVel,rightVel,imuYaw,gyroZ,accelX,accelY\n";
     }
 }
@@ -95,13 +103,13 @@ void RobotLocalization::logData(uint32_t ts, const SensorPacket& sensor) {
     auto vel         = g_ekf.getVelocities();
     auto [lVel,rVel] = RobotUtils::getWheelVelocities(sensor, dt_);
 
-
     logFile_ << ts << ","
              << pose[0] << "," << pose[1] << "," << pose[2] << ","
              << vel[0]  << "," << vel[1]  << "," << vel[2]  << ","
              << lVel    << "," << rVel    << ","
-             << sensor.yaw << "," << sensor.gyroZ << ","
-             << sensor.accelX << "," << sensor.accelY << "\n";
+             << sensor.yaw   << "," << sensor.gyroZ
+             << "," << sensor.accelX << "," << sensor.accelY
+             << "\n";
     logFile_.flush();
 }
 
@@ -112,11 +120,4 @@ std::string RobotLocalization::getCurrentTimestamp() {
     std::ostringstream ss;
     ss << std::put_time(&tm, "%Y%m%d_%H%M%S");
     return ss.str();
-}
-
-std::array<double,3> RobotLocalization::getPose() const {
-    return g_ekf.getPose();
-}
-std::array<double,3> RobotLocalization::getVelocities() const {
-    return g_ekf.getVelocities();
 }

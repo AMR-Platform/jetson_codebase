@@ -1,16 +1,17 @@
+// RobotLocalization.hpp
 #pragma once
+
 #include "SensorFusion.hpp"
 #include "../communication/serial_com.hpp"
 #include "robot_utils.hpp"
-#include "../lidar/lidar_handler.hpp"
 #include <fstream>
 #include <chrono>
 #include <array>
-#include <string>
+#include <string>        // for std::string
 
+/*** Wraps your EKF and logs once-per-tick into a single CSV file ***/
 class RobotLocalization {
 private:
-    // default loop period = 10 ms
     static constexpr double DEFAULT_DT = 0.01;
 
     std::chrono::steady_clock::time_point lastUpdate_;
@@ -20,7 +21,7 @@ private:
     bool enableLogging_;
 
 public:
-    RobotLocalization(bool enableLogging = true);
+    explicit RobotLocalization(bool enableLogging = true);
     ~RobotLocalization();
 
     void updateEKF(const SensorPacket& sensor);
