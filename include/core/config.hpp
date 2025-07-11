@@ -15,7 +15,7 @@ constexpr int RX_BUFFER_SIZE = 512;
 // UDP communication
 constexpr uint16_t LOCAL_UDP_PORT = 9000;
 constexpr uint16_t REMOTE_UDP_PORT = 9001;
-const std::string REMOTE_IP = "192.168.1.68";
+const std::string REMOTE_IP = "192.168.8.157";
 
 //LIDAR configuration
 constexpr int canvas = 1000;
